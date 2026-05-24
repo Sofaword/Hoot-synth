@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Hoot · Macro</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-deep: #050811;
+    --bg-mid: #0d1320;
+    --ink: #d4c5a0;
+    --ink-dim: #6b6049;
+    --ink-faint: #2a2620;
+    --ink-edge: #3a342a;
+    --amber: #f4a942;
+    --amber-glow: rgba(244, 169, 66, 0.45);
+    --rust: #b25a2a;
+    --moss: #4a6b4f;
+    --slate: #5a7a9e;
+    --circuit: #7a9168;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: 'Courier New', ui-monospace, monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 30% 10%, rgba(244,169,66,0.06), transparent 55%),
+      radial-gradient(ellipse at 70% 95%, rgba(122,145,104,0.05), transparent 55%),
+      var(--bg-deep);
+    padding: 10px 8px 22px;
+  }
+  .frame {
+    max-width: 480px;
+    margin: 0 auto;
+    border: 1px solid var(--ink-faint);
+    padding: 12px 10px 16px;
+    background: linear-gradient(180deg, rgba(10,14,26,0.7), rgba(5,8,17,0.92));
+    position: relative;
+  }
+  .frame::before {
+    content: '';
+    position: absolute;
+    top: 5px; left: 5px; right: 5px; bottom: 5px;
+    border: 1px solid var(--ink-faint);
+    pointer-events: none;
+    opacity: 0.35;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--ink-faint);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+  }
+  .title {
+    font-size: 20px;
+    letter-spacing: 0.35em;
+    color: var(--amber);
+    font-weight: normal;
+    text-shadow: 0 0 14px var(--amber-glow);
+    padding-left: 4px;
+  }
+  .subtitle {
+    font-size: 8px;
+    letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .tab {
+    background: transparent;
+    border: 1px solid var(--ink-edge);
+    color: var(--ink-dim);
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: rgba(244,169,66,0.06);
+    box-shadow: inset 0 0 10px rgba(244,169,66,0.08);
+  }
+  .panel { display: block; }
+  .panel.hidden { display: none; }
+
+  /* ------ MACRO OWL STAGE ------ */
+  .macro-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 11;
+    background:
+      radial-gradient(ellipse at center, rgba(244,169,66,0.06), transparent 65%),
+      var(--bg);
+    border: 1px solid var(--ink-faint);
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .macro-stage canvas { display: block; width: 100%; height: 100%; }
+  .stage-tag {
+    position: absolute;
+    top: 8px; left: 10px;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .stage-tag b { color: var(--amber); font-weight: normal; }
+  .stage-meta {
+    position: absolute;
+    top: 8px; right: 10px;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-align: right;
+  }
+  .stage-meta .note {
+    color: var(--amber);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+  }
+
+  .channels {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .channel {
+    background: var(--bg);
+    border: 1px solid var(--ink-faint);
+    padding: 3px 4px 4px;
+    text-align: center;
+  }
+  .ch-label {
+    font-size: 7px;
+    letter-spacing: 0.15em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .ch-bar {
+    height: 10px;
+    background: var(--ink-faint);
+    position: relative;
+    overflow: hidden;
+  }
+  .ch-fill {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 0%;
+    transition: height 16ms linear;
+  }
+  .ch-fill.macro  { background: linear-gradient(0deg, var(--amber), rgba(244,169,66,0.6)); }
+  .ch-fill.meso   { background: linear-gradient(0deg, var(--rust),  rgba(178,90,42,0.6)); }
+  .ch-fill.micro  { background: linear-gradient(0deg, var(--moss),  rgba(74,107,79,0.6)); }
+  .ch-fill.breath { background: linear-gradient(0deg, var(--slate), rgba(90,122,158,0.6)); }
+
+  /* ------ HEX PITCH PADS ------ */
+  .pad-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    max-width: 320px;
+    margin: 0 auto 10px;
+    background: var(--bg);
+    border: 1px solid var(--ink-faint);
+    overflow: hidden;
+  }
+  .pad-stage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(90deg, transparent 0, transparent 20px, rgba(42,38,32,0.22) 20px, rgba(42,38,32,0.22) 21px),
+      repeating-linear-gradient(0deg, transparent 0, transparent 20px, rgba(42,38,32,0.22) 20px, rgba(42,38,32,0.22) 21px);
+    pointer-events: none;
+    opacity: 0.5;
+  }
+  #pad-echo { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+  .pad {
+    position: absolute;
+    width: 26%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    background: var(--bg-mid);
+    border: 1px solid var(--ink-edge);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+    z-index: 2;
+    overflow: hidden;
+  }
+  .pad canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.7;
+  }
+  .pad .pitch {
+    position: relative;
+    z-index: 2;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    text-shadow: 0 0 6px rgba(10,14,26,0.9);
+    font-weight: bold;
+  }
+  .pad .hz {
+    position: relative;
+    z-index: 2;
+    font-size: 7px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 4px rgba(10,14,26,0.9);
+  }
+  .pad.focused {
+    border-color: var(--amber);
+    box-shadow: 0 0 12px rgba(244,169,66,0.3), inset 0 0 8px rgba(244,169,66,0.06);
+    z-index: 3;
+  }
+  .pad.focused .pitch { color: var(--amber); }
+  .pad.hooting {
+    background: rgba(244,169,66,0.16);
+  }
+  .pad.next-up {
+    border-color: var(--circuit);
+    box-shadow: inset 0 0 8px rgba(122,145,104,0.15);
+  }
+
+  /* ------ ACTION ROW ------ */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .action-btn {
+    background: transparent;
+    border: 1px solid var(--ink-edge);
+    color: var(--ink);
+    padding: 8px 4px;
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .action-btn:active { background: var(--bg-mid); }
+  .action-btn.play {
+    border-color: var(--circuit);
+    color: var(--circuit);
+  }
+  .action-btn.play.on {
+    background: rgba(122,145,104,0.15);
+    box-shadow: 0 0 10px rgba(122,145,104,0.3);
+  }
+
+  .bpm-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--ink-faint);
+    padding: 7px 10px;
+    margin-bottom: 8px;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .bpm-row .label { color: var(--ink-dim); }
+  .bpm-row .val { color: var(--amber); text-align: right; font-variant-numeric: tabular-nums; }
+
+  .patterns {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    margin-bottom: 10px;
+  }
+  .pat-btn {
+    background: transparent;
+    border: 1px solid var(--ink-edge);
+    color: var(--ink-dim);
+    padding: 5px 2px;
+    font-family: inherit;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .pat-btn.active {
+    border-color: var(--circuit);
+    color: var(--circuit);
+    background: rgba(122,145,104,0.08);
+  }
+
+  .pulse-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--circuit);
+    margin-right: 4px;
+    opacity: 0.3;
+    transition: opacity 80ms;
+  }
+  .pulse-dot.on { opacity: 1; box-shadow: 0 0 6px var(--circuit); }
+
+  /* ------ MACRO EDITOR ------ */
+  .editor-head {
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    margin: 4px 0 6px;
+  }
+  .editor-head b { color: var(--amber); font-weight: normal; letter-spacing: 0.2em; }
+  .macros {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .macro {
+    background: var(--bg);
+    border: 1px solid var(--ink-faint);
+    padding: 7px 9px 8px;
+  }
+  .macro-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 3px;
+  }
+  .macro-name {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .macro-val {
+    font-size: 9px;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--ink-faint);
+    outline: none;
+    border-radius: 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 16px;
+    background: var(--amber); cursor: pointer; border: none;
+    box-shadow: 0 0 6px var(--amber-glow);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 12px; height: 16px;
+    background: var(--amber); cursor: pointer; border: none;
+    box-shadow: 0 0 6px var(--amber-glow);
+  }
+
+  /* ------ LIBRARY ------ */
+  .save-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .save-row input[type=text] {
+    background: var(--bg);
+    border: 1px solid var(--ink-edge);
+    color: var(--ink);
+    font-family: inherit;
+    padding: 8px 10px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    outline: none;
+  }
+  .save-row input[type=text]:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 8px rgba(244,169,66,0.2);
+  }
+  .save-row .save-btn {
+    background: transparent;
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .save-row .save-btn:active { background: rgba(244,169,66,0.12); }
+
+  .lib-list {
+    display: grid;
+    gap: 5px;
+    max-height: 360px;
+    overflow-y: auto;
+  }
+  .lib-item {
+    background: var(--bg);
+    border: 1px solid var(--ink-faint);
+    padding: 6px 8px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .lib-item canvas {
+    width: 36px;
+    height: 36px;
+    display: block;
+  }
+  .lib-name {
+    font-size: 11px;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+  }
+  .lib-name .meta {
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+  .lib-btn {
+    background: transparent;
+    border: 1px solid var(--ink-edge);
+    color: var(--ink-dim);
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .lib-btn.load { border-color: var(--circuit); color: var(--circuit); }
+  .lib-btn.del  { border-color: var(--ink-edge); color: var(--ink-dim); }
+  .lib-btn:active { background: var(--bg-mid); }
+  .lib-empty {
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    padding: 30px 10px;
+    border: 1px dashed var(--ink-faint);
+    text-transform: uppercase;
+  }
+
+  .lib-hint {
+    font-size: 9px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--ink-faint);
+  }
+  .lib-hint b { color: var(--ink); font-weight: normal; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="header">
+    <h1 class="title">HOOT · MACRO</h1>
+    <span class="subtitle">v3 · auto·hoot</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="play">◉ INSTRUMENT</button>
+    <button class="tab" data-tab="library">⌬ LIBRARY</button>
+  </div>
+
+  <!-- ============ PLAY PANEL ============ -->
+  <div class="panel" id="panel-play">
+    <div class="macro-stage">
+      <div class="stage-tag"><b id="focus-name">TAWNY</b></div>
+      <div class="stage-meta">
+        <div id="focus-meta">slot 1</div>
+        <div class="note" id="focus-note">C4</div>
+      </div>
+      <canvas id="macro-canvas"></canvas>
+    </div>
+
+    <div class="channels">
+      <div class="channel"><div class="ch-label">Macro</div><div class="ch-bar"><div class="ch-fill macro" id="ch-macro"></div></div></div>
+      <div class="channel"><div class="ch-label">Meso</div><div class="ch-bar"><div class="ch-fill meso" id="ch-meso"></div></div></div>
+      <div class="channel"><div class="ch-label">Micro</div><div class="ch-bar"><div class="ch-fill micro" id="ch-micro"></div></div></div>
+      <div class="channel"><div class="ch-label">Breath</div><div class="ch-bar"><div class="ch-fill breath" id="ch-breath"></div></div></div>
+    </div>
+
+    <div class="pad-stage">
+      <canvas id="pad-echo"></canvas>
+      <div id="pad-grid"></div>
+    </div>
+
+    <div class="actions">
+      <button class="action-btn" id="btn-mirror">MIRROR ALL</button>
+      <button class="action-btn" id="btn-spread">SPREAD ♪</button>
+      <button class="action-btn play" id="btn-play"><span class="pulse-dot" id="pulse"></span>PLAY</button>
+    </div>
+
+    <div class="bpm-row">
+      <span class="label">BPM</span>
+      <input type="range" id="bpm" min="40" max="180" value="90">
+      <span class="val" id="bpm-val">90</span>
+    </div>
+
+    <div class="patterns">
+      <button class="pat-btn active" data-pat="sequential">SEQ</button>
+      <button class="pat-btn" data-pat="ascending">UP</button>
+      <button class="pat-btn" data-pat="pingpong">⇄</button>
+      <button class="pat-btn" data-pat="walk">WALK</button>
+      <button class="pat-btn" data-pat="random">RAND</button>
+    </div>
+
+    <div class="editor-head">EDITING · <b id="edit-name">TAWNY</b></div>
+    <div class="macros">
+      <div class="macro"><div class="macro-head"><span class="macro-name">Effort</span><span class="macro-val" id="v-effort">—</span></div><input type="range" id="effort" min="0" max="100" value="65"></div>
+      <div class="macro"><div class="macro-head"><span class="macro-name">Length</span><span class="macro-val" id="v-length">—</span></div><input type="range" id="length" min="30" max="200" value="100"></div>
+      <div class="macro"><div class="macro-head"><span class="macro-name">Rough</span><span class="macro-val" id="v-rough">—</span></div><input type="range" id="rough" min="0" max="100" value="40"></div>
+      <div class="macro"><div class="macro-head"><span class="macro-name">Voice</span><span class="macro-val" id="v-voice">—</span></div><input type="range" id="voice" min="0" max="100" value="50"></div>
+      <div class="macro"><div class="macro-head"><span class="macro-name">Pitch</span><span class="macro-val" id="v-pitch">—</span></div><input type="range" id="pitch" min="80" max="700" value="261"></div>
+      <div class="macro"><div class="macro-head"><span class="macro-name">Ratio</span><span class="macro-val" id="v-ratio">—</span></div><input type="range" id="ratio" min="10" max="40" value="20"></div>
+    </div>
+  </div>
+
+  <!-- ============ LIBRARY PANEL ============ -->
+  <div class="panel hidden" id="panel-library">
+    <div class="save-row">
+      <input type="text" id="save-name" placeholder="name this owl…" maxlength="24">
+      <button class="save-btn" id="btn-save">SAVE</button>
+    </div>
+    <div class="lib-list" id="lib-list"></div>
+    <div class="lib-hint">
+      <b>Workflow.</b> Edit an owl on the Instrument panel, name &amp; save it here, then load it into any slot. Use <b>MIRROR ALL</b> to copy the focused slot to every slot (pitches kept), then <b>SPREAD ♪</b> to fan pitches out across a pentatonic scale for melody play.
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// HEX LAYOUT (1 center + 6 outer, pointy-top)
+// ============================================================
+const HEX_POS = [
+  { x: 0.50, y: 0.50 },
+  { x: 0.50, y: 0.13 },
+  { x: 0.81, y: 0.32 },
+  { x: 0.81, y: 0.68 },
+  { x: 0.50, y: 0.87 },
+  { x: 0.19, y: 0.68 },
+  { x: 0.19, y: 0.32 },
+];
+// adjacency for WALK pattern (center connects to all, ring connects to neighbors)
+const HEX_ADJ = [
+  [1,2,3,4,5,6], // 0 center
+  [0,2,6], [0,1,3], [0,2,4], [0,3,5], [0,4,6], [0,1,5],
+];
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function hzToNote(hz) {
+  const n = Math.round(12 * Math.log2(hz / 440)) + 69; // MIDI
+  return NOTE_NAMES[(n + 1200) % 12] + (Math.floor(n / 12) - 1);
+}
+const PENTATONIC = [0, 2, 4, 7, 9]; // major pentatonic intervals in semitones
+
+// ============================================================
+// 7 SLOTS — pentatonic-tuned defaults
+// ============================================================
+const DEFAULT_SLOTS = [
+  { name: 'Tawny',   pitch: 261, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+  { name: 'Tawny',   pitch: 196, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+  { name: 'Tawny',   pitch: 392, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+  { name: 'Tawny',   pitch: 329, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+  { name: 'Tawny',   pitch: 165, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+  { name: 'Tawny',   pitch: 220, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+  { name: 'Tawny',   pitch: 440, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' },
+];
+
+const SEED_LIBRARY = [
+  { id: 's1', name: 'Tawny',   owl: { name: 'Tawny',   pitch: 261, ratio: 2.0, voice: 0.50, effort: 0.65, rough: 0.30, length: 1.10, tint: '#b8895a' } },
+  { id: 's2', name: 'Screech', owl: { name: 'Screech', pitch: 392, ratio: 2.5, voice: 0.75, effort: 0.78, rough: 0.75, length: 0.50, tint: '#c66845' } },
+  { id: 's3', name: 'Eagle',   owl: { name: 'Eagle',   pitch: 165, ratio: 1.8, voice: 0.55, effort: 0.85, rough: 0.42, length: 1.80, tint: '#7b8898' } },
+  { id: 's4', name: 'Snowy',   owl: { name: 'Snowy',   pitch: 220, ratio: 1.5, voice: 0.45, effort: 0.55, rough: 0.15, length: 1.50, tint: '#a8b4c4' } },
+];
+
+let slots = DEFAULT_SLOTS.map(o => ({ ...o }));
+let library = SEED_LIBRARY.map(x => ({ ...x, owl: { ...x.owl } }));
+let focusedSlot = 0;
+let currentTab = 'play';
+
+// generative state
+let isPlaying = false;
+let bpm = 90;
+let pattern = 'sequential';
+let stepIdx = 0;
+let pingDir = 1;
+let genTimer = null;
+let pulseElement = null;
+let nextUpIdx = -1;
+
+// ============================================================
+// PERSISTENCE
+// ============================================================
+async function loadAll() {
+  for (let i = 0; i < 7; i++) {
+    try {
+      const r = await window.storage.get(`slot:${i+1}`);
+      if (r && r.value) slots[i] = { ...DEFAULT_SLOTS[i], ...JSON.parse(r.value) };
+    } catch (e) {}
+  }
+  try {
+    const r = await window.storage.get('lib');
+    if (r && r.value) library = JSON.parse(r.value);
+  } catch (e) {}
+  try {
+    const r = await window.storage.get('focus');
+    if (r && r.value) focusedSlot = Math.max(0, Math.min(6, parseInt(r.value, 10) || 0));
+  } catch (e) {}
+  try {
+    const r = await window.storage.get('bpm');
+    if (r && r.value) bpm = Math.max(40, Math.min(180, parseInt(r.value, 10) || 90));
+  } catch (e) {}
+  try {
+    const r = await window.storage.get('pat');
+    if (r && r.value) pattern = r.value;
+  } catch (e) {}
+}
+const saveTimers = {};
+function scheduleSaveSlot(i) {
+  clearTimeout(saveTimers['s'+i]);
+  saveTimers['s'+i] = setTimeout(async () => {
+    try { await window.storage.set(`slot:${i+1}`, JSON.stringify(slots[i])); } catch (e) {}
+  }, 300);
+}
+async function saveLib() { try { await window.storage.set('lib', JSON.stringify(library)); } catch (e) {} }
+async function saveFocus() { try { await window.storage.set('focus', String(focusedSlot)); } catch (e) {} }
+async function saveBPM() { try { await window.storage.set('bpm', String(bpm)); } catch (e) {} }
+async function savePat() { try { await window.storage.set('pat', pattern); } catch (e) {} }
+
+// ============================================================
+// SYNTH (same architecture as before)
+// ============================================================
+let ctx = null, nodes = null;
+
+function buildSynth() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  const masterSrc = ctx.createConstantSource();
+  masterSrc.offset.value = 1;
+  const masterGesture = ctx.createGain();
+  masterGesture.gain.value = 0;
+  masterSrc.connect(masterGesture);
+  masterSrc.start();
+
+  const carrierA = ctx.createOscillator();
+  carrierA.type = 'sine'; carrierA.frequency.value = 261;
+  const carrierB = ctx.createOscillator();
+  carrierB.type = 'sine'; carrierB.frequency.value = 261; carrierB.detune.value = 8;
+  const carrierBLevel = ctx.createGain(); carrierBLevel.gain.value = 0.3;
+  carrierB.connect(carrierBLevel);
+
+  const modulator = ctx.createOscillator();
+  modulator.type = 'sine'; modulator.frequency.value = 522;
+  const fmDepth = ctx.createGain(); fmDepth.gain.value = 0;
+  modulator.connect(fmDepth);
+  fmDepth.connect(carrierA.frequency);
+  fmDepth.connect(carrierB.frequency);
+  const fmCouple = ctx.createGain(); fmCouple.gain.value = 80;
+  masterGesture.connect(fmCouple); fmCouple.connect(fmDepth.gain);
+
+  const tremorOsc = ctx.createOscillator();
+  tremorOsc.type = 'sine'; tremorOsc.frequency.value = 7;
+  const tremorPitch = ctx.createGain(); tremorPitch.gain.value = 0;
+  tremorOsc.connect(tremorPitch);
+  tremorPitch.connect(carrierA.detune);
+  tremorPitch.connect(carrierB.detune);
+  const tremorPitchCouple = ctx.createGain(); tremorPitchCouple.gain.value = 12;
+  masterGesture.connect(tremorPitchCouple); tremorPitchCouple.connect(tremorPitch.gain);
+
+  const tremorAmp = ctx.createGain(); tremorAmp.gain.value = 0;
+  tremorOsc.connect(tremorAmp);
+  const tremorAmpCouple = ctx.createGain(); tremorAmpCouple.gain.value = 0.12;
+  masterGesture.connect(tremorAmpCouple); tremorAmpCouple.connect(tremorAmp.gain);
+
+  const noiseBuf = (() => {
+    const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  })();
+
+  const jitterSrc = ctx.createBufferSource();
+  jitterSrc.buffer = noiseBuf; jitterSrc.loop = true;
+  const jitterFilter = ctx.createBiquadFilter();
+  jitterFilter.type = 'lowpass'; jitterFilter.frequency.value = 50; jitterFilter.Q.value = 0.7;
+  jitterSrc.connect(jitterFilter);
+  const jitterDepth = ctx.createGain(); jitterDepth.gain.value = 0;
+  jitterFilter.connect(jitterDepth);
+  jitterDepth.connect(carrierA.detune);
+  const jitterCouple = ctx.createGain(); jitterCouple.gain.value = 6;
+  masterGesture.connect(jitterCouple); jitterCouple.connect(jitterDepth.gain);
+
+  const breathSrc = ctx.createBufferSource();
+  breathSrc.buffer = noiseBuf; breathSrc.loop = true;
+  const breathFilter = ctx.createBiquadFilter();
+  breathFilter.type = 'bandpass'; breathFilter.frequency.value = 1800; breathFilter.Q.value = 0.8;
+  const breathLevel = ctx.createGain(); breathLevel.gain.value = 0;
+  breathSrc.connect(breathFilter); breathFilter.connect(breathLevel);
+  const breathCouple = ctx.createGain(); breathCouple.gain.value = 0.18;
+  masterGesture.connect(breathCouple); breathCouple.connect(breathLevel.gain);
+
+  const f1 = ctx.createBiquadFilter(); f1.type='peaking'; f1.frequency.value=700;  f1.Q.value=6; f1.gain.value=8;
+  const f2 = ctx.createBiquadFilter(); f2.type='peaking'; f2.frequency.value=1400; f2.Q.value=8; f2.gain.value=5;
+  const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2400; lp.Q.value=1.5;
+
+  const preFormant = ctx.createGain(); preFormant.gain.value = 0.55;
+  carrierA.connect(preFormant);
+  carrierBLevel.connect(preFormant);
+  breathLevel.connect(preFormant);
+  preFormant.connect(f1); f1.connect(f2); f2.connect(lp);
+
+  const amp = ctx.createGain(); amp.gain.value = 0;
+  lp.connect(amp);
+  masterGesture.connect(amp.gain);
+  tremorAmp.connect(amp.gain);
+
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 4;
+  comp.attack.value = 0.003; comp.release.value = 0.1;
+  amp.connect(comp); comp.connect(ctx.destination);
+
+  carrierA.start(); carrierB.start(); modulator.start();
+  tremorOsc.start(); jitterSrc.start(); breathSrc.start();
+
+  return { masterGesture, carrierA, carrierB, carrierBLevel, modulator };
+}
+
+function applyOwlToSynth(o) {
+  if (!nodes) return;
+  const t = ctx.currentTime;
+  nodes.carrierA.frequency.setTargetAtTime(o.pitch, t, 0.02);
+  nodes.carrierB.frequency.setTargetAtTime(o.pitch, t, 0.02);
+  nodes.modulator.frequency.setTargetAtTime(o.pitch * o.ratio, t, 0.02);
+  nodes.carrierBLevel.gain.setTargetAtTime(0.05 + o.voice * 0.45, t, 0.02);
+}
+
+// ============================================================
+// HOOT + ENV
+// ============================================================
+let env = null;
+const echoes = [];
+let lastHootIdx = 0;
+let gazeTarget = { x: 0, y: 0 };
+let gazeCurrent = { x: 0, y: 0 };
+
+function envValueAt(t) {
+  if (!env) return 0;
+  const { attack, sustain, release, peak, sustainLevel } = env;
+  if (t < 0) return 0;
+  if (t < attack) return (t / attack) * peak;
+  if (t < attack + sustain) {
+    const u = (t - attack) / sustain;
+    return peak + (sustainLevel - peak) * u;
+  }
+  if (t < attack + sustain + release) {
+    const u = (t - attack - sustain) / release;
+    return sustainLevel * (1 - u);
+  }
+  return 0;
+}
+
+function hoot(idx, focusOnPlay = true) {
+  if (!ctx) nodes = buildSynth();
+  if (ctx.state === 'suspended') ctx.resume();
+
+  if (focusOnPlay && idx !== focusedSlot) {
+    focusedSlot = idx;
+    syncUIToFocused();
+    saveFocus();
+  }
+  applyOwlToSynth(slots[idx]);
+
+  const o = slots[idx];
+  const t = ctx.currentTime;
+  const attack = 0.18 * o.length;
+  const sustain = 0.45 * o.length;
+  const release = 0.30 * o.length;
+  const peak = o.effort * 0.7;
+  const sustainLevel = peak * 0.82;
+
+  const g = nodes.masterGesture.gain;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(peak, t + attack);
+  g.linearRampToValueAtTime(sustainLevel, t + attack + sustain);
+  g.linearRampToValueAtTime(0, t + attack + sustain + release);
+
+  env = {
+    attack, sustain, release, peak, sustainLevel,
+    startMs: performance.now(),
+    totalMs: (attack + sustain + release) * 1000,
+    slotIdx: idx,
+  };
+  lastHootIdx = idx;
+
+  // gaze: pupils look toward the played slot
+  const pos = HEX_POS[idx];
+  gazeTarget.x = (pos.x - 0.5) * 2;
+  gazeTarget.y = (pos.y - 0.5) * 2;
+
+  // visual hooting flash
+  const pad = document.querySelectorAll('.pad')[idx];
+  if (pad) {
+    pad.classList.add('hooting');
+    setTimeout(() => pad.classList.remove('hooting'), 200);
+  }
+
+  // echo ripple on pad stage
+  echoes.push({
+    x: pos.x, y: pos.y,
+    startMs: performance.now(),
+    duration: 500 + o.length * 300,
+    tint: slots[idx].tint,
+  });
+}
+
+// ============================================================
+// GENERATIVE ENGINE
+// ============================================================
+const PATTERN_FNS = {
+  sequential: (step, current) => (current + 1) % 7,
+  ascending: (step, current) => {
+    const order = [...Array(7).keys()].sort((a, b) => slots[a].pitch - slots[b].pitch);
+    const cur = order.indexOf(current);
+    return order[(cur + 1) % 7];
+  },
+  pingpong: (step, current) => {
+    let next = current + pingDir;
+    if (next > 6) { pingDir = -1; next = 5; }
+    if (next < 0) { pingDir = 1; next = 1; }
+    return next;
+  },
+  walk: (step, current) => {
+    const neighbors = HEX_ADJ[current];
+    return neighbors[Math.floor(Math.random() * neighbors.length)];
+  },
+  random: () => Math.floor(Math.random() * 7),
+};
+
+function genTick() {
+  const fn = PATTERN_FNS[pattern] || PATTERN_FNS.sequential;
+  const next = fn(stepIdx, lastHootIdx);
+  hoot(next, false); // generative play doesn't change focus
+  stepIdx++;
+  // compute next-up indicator
+  nextUpIdx = fn(stepIdx, next);
+  document.querySelectorAll('.pad').forEach((p, i) => p.classList.toggle('next-up', i === nextUpIdx));
+  // pulse
+  if (pulseElement) {
+    pulseElement.classList.add('on');
+    setTimeout(() => pulseElement.classList.remove('on'), 80);
+  }
+}
+
+function startGen() {
+  if (isPlaying) return;
+  if (!ctx) nodes = buildSynth();
+  if (ctx.state === 'suspended') ctx.resume();
+  isPlaying = true;
+  stepIdx = 0;
+  pingDir = 1;
+  document.getElementById('btn-play').classList.add('on');
+  document.getElementById('btn-play').innerHTML = `<span class="pulse-dot on" id="pulse"></span>STOP`;
+  pulseElement = document.getElementById('pulse');
+  genTick(); // first beat immediately
+  const interval = 60000 / bpm;
+  genTimer = setInterval(genTick, interval);
+}
+
+function stopGen() {
+  isPlaying = false;
+  clearInterval(genTimer);
+  genTimer = null;
+  document.getElementById('btn-play').classList.remove('on');
+  document.getElementById('btn-play').innerHTML = `<span class="pulse-dot" id="pulse"></span>PLAY`;
+  pulseElement = document.getElementById('pulse');
+  document.querySelectorAll('.pad').forEach(p => p.classList.remove('next-up'));
+  nextUpIdx = -1;
+}
+
+function restartGenIfPlaying() {
+  if (isPlaying) {
+    clearInterval(genTimer);
+    const interval = 60000 / bpm;
+    genTimer = setInterval(genTick, interval);
+  }
+}
+
+// ============================================================
+// OWL RENDERER
+// ============================================================
+function hexToRGB(hex) {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16),
+    g: parseInt(h.substring(2, 4), 16),
+    b: parseInt(h.substring(4, 6), 16),
+  };
+}
+
+function drawOwl(canvas, c, o, anim, opts) {
+  opts = opts || {};
+  const W = canvas.width;
+  const H = canvas.height;
+  const small = opts.small || false;
+  const gazeX = opts.gazeX || 0;
+  const gazeY = opts.gazeY || 0;
+  c.clearRect(0, 0, W, H);
+
+  const cx = W / 2;
+  const cy = H * 0.54;
+  const sizeBase = Math.min(W, H) * (small ? 0.34 : 0.32);
+  const pitchScale = 1.40 - ((o.pitch - 80) / 620) * 0.75;
+  const breathExpand = 1 + anim.gesture * 0.08;
+  const liftY = -anim.gesture * sizeBase * 0.04;
+  const size = sizeBase * pitchScale * breathExpand;
+
+  if (anim.gesture > 0.02 && !small) {
+    const auraR = size * (1.7 + anim.gesture * 0.8);
+    const grad = c.createRadialGradient(cx, cy, size * 0.85, cx, cy, auraR);
+    grad.addColorStop(0, `rgba(244,169,66,${0.22 * anim.gesture})`);
+    grad.addColorStop(0.6, `rgba(244,169,66,${0.06 * anim.gesture})`);
+    grad.addColorStop(1, 'rgba(244,169,66,0)');
+    c.fillStyle = grad;
+    c.fillRect(0, 0, W, H);
+  }
+
+  if (anim.breathLevel > 0.05 && !small) {
+    c.fillStyle = `rgba(90,122,158,${0.4 * anim.breathLevel})`;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + anim.t * 0.6;
+      const r = size * (1.15 + 0.45 * Math.sin(anim.t * 2 + i));
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r * 0.6 - size * 0.3;
+      const ps = 1.5 + anim.breathLevel * 2.5;
+      c.fillRect(px - ps/2, py - ps/2, ps, ps);
+    }
+  }
+
+  const swayX = anim.tremor * 2.5 * anim.gesture * (small ? 0.4 : 1);
+
+  c.save();
+  c.translate(cx + swayX, cy + liftY);
+
+  const sil = [
+    [-0.13, -1.10], [ 0.13, -1.10],
+    [ 0.50, -0.92], [ 0.78, -0.55], [ 0.88, -0.10],
+    [ 0.95,  0.30], [ 0.78,  0.78], [ 0.42,  1.08],
+    [ 0.00,  1.20],
+    [-0.42,  1.08], [-0.78,  0.78], [-0.95,  0.30],
+    [-0.88, -0.10], [-0.78, -0.55], [-0.50, -0.92],
+  ];
+  const roughAmt = o.rough * 0.10 * size;
+  const pertSeed = (i) =>
+      Math.sin(i * 13.7 + o.pitch * 0.013) * 0.7
+    + Math.sin(i * 7.3 + o.ratio * 0.5) * 0.4;
+  const jitterAmt = anim.jitter * 0.02 * size * anim.gesture;
+
+  c.beginPath();
+  for (let i = 0; i < sil.length; i++) {
+    const [bx, by] = sil[i];
+    const dx = pertSeed(i) * roughAmt + (Math.sin(i * 2.1) * jitterAmt);
+    const dy = pertSeed(i + 100) * roughAmt + (Math.cos(i * 1.7) * jitterAmt);
+    const x = bx * size + dx;
+    const y = by * size + dy;
+    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.closePath();
+  const tintRGB = hexToRGB(o.tint || '#9a7a52');
+  c.fillStyle = `rgba(${tintRGB.r},${tintRGB.g},${tintRGB.b},${0.55 + anim.gesture * 0.2})`;
+  c.fill();
+  c.strokeStyle = `rgba(${tintRGB.r},${tintRGB.g},${tintRGB.b},0.9)`;
+  c.lineWidth = small ? 0.8 : 1.5;
+  c.stroke();
+
+  const earH = size * (0.32 + o.length * 0.14);
+  for (const sign of [-1, 1]) {
+    c.beginPath();
+    c.moveTo(sign * 0.45 * size, -0.95 * size);
+    c.lineTo(sign * 0.26 * size, -0.95 * size - earH);
+    c.lineTo(sign * 0.15 * size, -1.05 * size);
+    c.closePath();
+    c.fillStyle = `rgba(${tintRGB.r},${tintRGB.g},${tintRGB.b},0.85)`;
+    c.fill();
+    c.strokeStyle = `rgba(${tintRGB.r},${tintRGB.g},${tintRGB.b},1)`;
+    c.lineWidth = small ? 0.6 : 1.2;
+    c.stroke();
+  }
+
+  c.beginPath();
+  c.ellipse(0, -size * 0.25, size * 0.62, size * 0.55, 0, 0, Math.PI * 2);
+  const fdR = Math.min(255, tintRGB.r + 30);
+  const fdG = Math.min(255, tintRGB.g + 25);
+  const fdB = Math.min(255, tintRGB.b + 18);
+  c.fillStyle = `rgba(${fdR},${fdG},${fdB},0.35)`;
+  c.fill();
+  c.strokeStyle = `rgba(${fdR},${fdG},${fdB},0.5)`;
+  c.lineWidth = small ? 0.4 : 0.9;
+  c.stroke();
+
+  const facetCount = Math.round(4 + o.ratio * 5);
+  const featherAlpha = 0.18 + anim.gesture * 0.28;
+  const fcR = Math.min(255, tintRGB.r + 50);
+  const fcG = Math.min(255, tintRGB.g + 40);
+  const fcB = Math.min(255, tintRGB.b + 30);
+  c.strokeStyle = `rgba(${fcR},${fcG},${fcB},${featherAlpha})`;
+  c.lineWidth = small ? 0.3 : 0.7;
+  for (let i = 0; i < facetCount; i++) {
+    const u = i / facetCount;
+    const ang = -Math.PI / 2 + Math.PI + (u - 0.5) * Math.PI * 1.3;
+    const r1 = size * 0.45;
+    const r2 = size * 0.95;
+    const cyF = size * 0.35;
+    const x1 = Math.cos(ang) * r1;
+    const y1 = cyF + Math.sin(ang) * r1 * 0.55;
+    const x2 = Math.cos(ang) * r2;
+    const y2 = cyF + Math.sin(ang) * r2 * 0.55;
+    c.beginPath();
+    c.moveTo(x1, y1);
+    c.lineTo(x2, y2);
+    c.stroke();
+  }
+  if (!small) {
+    c.strokeStyle = `rgba(${fdR},${fdG},${fdB},${featherAlpha * 0.7})`;
+    const inner = Math.round(facetCount * 0.6);
+    for (let i = 0; i < inner; i++) {
+      const u = i / inner;
+      const ang = -Math.PI / 2 + Math.PI + (u - 0.5) * Math.PI * 1.0;
+      const r1 = size * 0.30;
+      const r2 = size * 0.55;
+      const cyF = size * 0.55;
+      const x1 = Math.cos(ang) * r1;
+      const y1 = cyF + Math.sin(ang) * r1 * 0.55;
+      const x2 = Math.cos(ang) * r2;
+      const y2 = cyF + Math.sin(ang) * r2 * 0.55;
+      c.beginPath();
+      c.moveTo(x1, y1);
+      c.lineTo(x2, y2);
+      c.stroke();
+    }
+  }
+
+  const eyeSep = size * (0.18 + o.voice * 0.24);
+  const eyeR = size * (0.20 - o.voice * 0.03);
+  const eyeY = -size * 0.30;
+  const eyeGlow = o.effort * 0.5 + anim.gesture * 0.6;
+  const gazeOff = eyeR * 0.35;
+  const pupilJX = anim.jitter * 1.2 * anim.gesture + gazeX * gazeOff;
+  const pupilJY = Math.sin(anim.t * 40) * 0.5 * anim.gesture * o.rough + gazeY * gazeOff;
+
+  for (const sign of [-1, 1]) {
+    const ex = sign * eyeSep;
+    const ey = eyeY;
+    c.beginPath();
+    c.arc(ex, ey, eyeR * 1.1, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(15,12,8,0.85)';
+    c.fill();
+    c.beginPath();
+    c.arc(ex, ey, eyeR, 0, Math.PI * 2);
+    const eg = c.createRadialGradient(ex, ey, eyeR * 0.2, ex, ey, eyeR);
+    eg.addColorStop(0, `rgba(255,205,105,${0.85 + eyeGlow * 0.15})`);
+    eg.addColorStop(0.6, `rgba(244,169,66,${0.7 + eyeGlow * 0.25})`);
+    eg.addColorStop(1, `rgba(180,100,30,${0.6 + eyeGlow * 0.3})`);
+    c.fillStyle = eg;
+    c.fill();
+    if (anim.gesture > 0.05 && !small) {
+      c.beginPath();
+      c.arc(ex, ey, eyeR * (1.3 + anim.gesture * 0.3), 0, Math.PI * 2);
+      c.strokeStyle = `rgba(244,169,66,${0.3 * anim.gesture})`;
+      c.lineWidth = 1.5;
+      c.stroke();
+    }
+    c.beginPath();
+    c.arc(ex + pupilJX, ey + pupilJY, eyeR * 0.32, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(8,6,3,1)';
+    c.fill();
+    c.beginPath();
+    c.arc(ex - eyeR * 0.25 + gazeX * gazeOff * 0.3, ey - eyeR * 0.25 + gazeY * gazeOff * 0.3, eyeR * 0.08, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,240,200,0.9)';
+    c.fill();
+  }
+
+  const beakOpen = anim.gesture * size * 0.05;
+  c.beginPath();
+  c.moveTo(-size * 0.06, -size * 0.10);
+  c.lineTo( size * 0.06, -size * 0.10);
+  c.lineTo( 0,           size * 0.06 + beakOpen);
+  c.closePath();
+  const bR = Math.max(0, tintRGB.r - 20);
+  const bG = Math.max(0, tintRGB.g - 30);
+  const bB = Math.max(0, tintRGB.b - 40);
+  c.fillStyle = `rgba(${bR},${bG},${bB},0.95)`;
+  c.fill();
+  c.strokeStyle = 'rgba(20,16,10,0.8)';
+  c.lineWidth = small ? 0.4 : 0.8;
+  c.stroke();
+
+  c.restore();
+}
+
+function drawEchoes(canvas, c) {
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+  const now = performance.now();
+  for (let i = echoes.length - 1; i >= 0; i--) {
+    const e = echoes[i];
+    const u = (now - e.startMs) / e.duration;
+    if (u >= 1) { echoes.splice(i, 1); continue; }
+    const px = e.x * W;
+    const py = e.y * H;
+    const rgb = hexToRGB(e.tint);
+    const r = u * Math.min(W, H) * 0.5;
+    c.beginPath();
+    c.arc(px, py, r, 0, Math.PI * 2);
+    c.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${(1 - u) * 0.5})`;
+    c.lineWidth = 1.5 * (1 - u * 0.5);
+    c.stroke();
+  }
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+const macroCanvas = document.getElementById('macro-canvas');
+const macroCtx = macroCanvas.getContext('2d');
+const padGrid = document.getElementById('pad-grid');
+const padEcho = document.getElementById('pad-echo');
+const padEchoCtx = padEcho.getContext('2d');
+const padMiniCanvases = [];
+
+const chMacro = document.getElementById('ch-macro');
+const chMeso = document.getElementById('ch-meso');
+const chMicro = document.getElementById('ch-micro');
+const chBreath = document.getElementById('ch-breath');
+
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const t = now / 1000;
+
+  let gesture = 0;
+  let playingIdx = focusedSlot;
+  if (env) {
+    const elapsed = now - env.startMs;
+    const peak = env.peak || 0.001;
+    gesture = envValueAt(elapsed / 1000) / peak;
+    playingIdx = env.slotIdx;
+    if (elapsed >= env.totalMs) env = null;
+  }
+
+  const tremor = Math.sin(t * 2 * Math.PI * 7);
+  const jitter = Math.sin(t * 2 * Math.PI * 37) * 0.6 + Math.sin(t * 2 * Math.PI * 53) * 0.4;
+  const o = slots[playingIdx];
+  const anim = {
+    gesture, tremor, jitter, t,
+    breathLevel: gesture * (0.3 + o.rough * 0.7),
+  };
+  const restAnim = { gesture: 0, tremor: 0, jitter: 0, breathLevel: 0, t };
+
+  // smooth gaze toward target
+  gazeCurrent.x += (gazeTarget.x - gazeCurrent.x) * 0.08;
+  gazeCurrent.y += (gazeTarget.y - gazeCurrent.y) * 0.08;
+
+  if (currentTab === 'play') {
+    // big macro owl shows the playing owl (or focused if idle)
+    const showOwl = env ? slots[env.slotIdx] : slots[focusedSlot];
+    drawOwl(macroCanvas, macroCtx, showOwl, env ? anim : restAnim, {
+      gazeX: gazeCurrent.x,
+      gazeY: gazeCurrent.y,
+    });
+    // mini pad owls
+    for (let i = 0; i < 7; i++) {
+      const cv = padMiniCanvases[i];
+      if (!cv) continue;
+      const isPlaying = env && env.slotIdx === i;
+      drawOwl(cv, cv.getContext('2d'), slots[i], isPlaying ? anim : restAnim, { small: true });
+    }
+    drawEchoes(padEcho, padEchoCtx);
+  }
+
+  // channel bars
+  chMacro.style.height = (gesture * 100).toFixed(0) + '%';
+  chMeso.style.height = (gesture * o.effort * 100).toFixed(0) + '%';
+  chMicro.style.height = (gesture * o.rough * 100).toFixed(0) + '%';
+  chBreath.style.height = (gesture * (0.3 + o.rough * 0.7) * 100).toFixed(0) + '%';
+}
+
+// ============================================================
+// UI BUILDERS
+// ============================================================
+function buildPadGrid() {
+  padGrid.innerHTML = '';
+  padMiniCanvases.length = 0;
+  HEX_POS.forEach((pos, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'pad' + (i === focusedSlot ? ' focused' : '');
+    btn.style.left = (pos.x * 100) + '%';
+    btn.style.top = (pos.y * 100) + '%';
+    const note = hzToNote(slots[i].pitch);
+    btn.innerHTML = `<canvas></canvas><div class="pitch">${note}</div><div class="hz">${Math.round(slots[i].pitch)}Hz</div>`;
+    btn.addEventListener('click', () => hoot(i));
+    padGrid.appendChild(btn);
+    const cv = btn.querySelector('canvas');
+    cv.width = 100; cv.height = 100;
+    padMiniCanvases[i] = cv;
+  });
+}
+
+function refreshPadLabels() {
+  document.querySelectorAll('.pad').forEach((p, i) => {
+    const note = hzToNote(slots[i].pitch);
+    p.querySelector('.pitch').textContent = note;
+    p.querySelector('.hz').textContent = Math.round(slots[i].pitch) + 'Hz';
+  });
+}
+
+function syncUIToFocused() {
+  const o = slots[focusedSlot];
+  document.getElementById('effort').value = Math.round(o.effort * 100);
+  document.getElementById('length').value = Math.round(o.length * 100);
+  document.getElementById('rough').value = Math.round(o.rough * 100);
+  document.getElementById('voice').value = Math.round(o.voice * 100);
+  document.getElementById('pitch').value = Math.round(o.pitch);
+  document.getElementById('ratio').value = Math.round(o.ratio * 10);
+  updateValueDisplays();
+  document.getElementById('focus-name').textContent = o.name.toUpperCase();
+  document.getElementById('focus-meta').textContent = 'slot ' + (focusedSlot + 1);
+  document.getElementById('focus-note').textContent = hzToNote(o.pitch);
+  document.getElementById('edit-name').textContent = o.name.toUpperCase();
+  document.querySelectorAll('.pad').forEach((p, i) => p.classList.toggle('focused', i === focusedSlot));
+}
+
+function updateValueDisplays() {
+  const o = slots[focusedSlot];
+  document.getElementById('v-effort').textContent = o.effort.toFixed(2);
+  document.getElementById('v-length').textContent = o.length.toFixed(2) + 's';
+  document.getElementById('v-rough').textContent = o.rough.toFixed(2);
+  document.getElementById('v-voice').textContent = o.voice.toFixed(2);
+  document.getElementById('v-pitch').textContent = Math.round(o.pitch) + ' Hz';
+  document.getElementById('v-ratio').textContent = o.ratio.toFixed(1);
+  document.getElementById('focus-note').textContent = hzToNote(o.pitch);
+}
+
+function bindMacro(id, key, transform) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const raw = +el.value;
+    const v = transform(raw);
+    slots[focusedSlot][key] = v;
+    updateValueDisplays();
+    if (key === 'pitch') refreshPadLabels();
+    if (nodes) applyOwlToSynth(slots[focusedSlot]);
+    scheduleSaveSlot(focusedSlot);
+  });
+}
+
+function switchTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('hidden', p.id !== `panel-${name}`));
+  if (name === 'play') {
+    fixCanvasDPR(macroCanvas);
+    fixCanvasDPR(padEcho);
+  }
+  if (name === 'library') {
+    renderLibrary();
+  }
+}
+
+function fixCanvasDPR(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0) return;
+  canvas.width = Math.round(rect.width);
+  canvas.height = Math.round(rect.height);
+}
+
+// ============================================================
+// MIRROR / SPREAD
+// ============================================================
+function mirrorAll() {
+  const src = slots[focusedSlot];
+  for (let i = 0; i < 7; i++) {
+    if (i === focusedSlot) continue;
+    slots[i] = {
+      ...src,
+      pitch: slots[i].pitch, // keep each slot's pitch
+    };
+    scheduleSaveSlot(i);
+  }
+  refreshPadLabels();
+}
+
+function spreadPitches() {
+  // base = lowest current pitch among slots, spread up pentatonic scale
+  // place them in hex in a musically-friendly arrangement
+  const root = Math.min(...slots.map(s => s.pitch));
+  // Octave: base at slot 4 (bottom), going up through ring
+  // Order around hex: bottom (lowest), then walk clockwise up
+  // Indices in order of ascending pitch:
+  const order = [4, 5, 0, 6, 1, 2, 3]; // bottom, lower-left, center, upper-left, top, upper-right, lower-right
+  for (let i = 0; i < 7; i++) {
+    const slotIdx = order[i];
+    const oct = Math.floor(i / 5);
+    const stepIdx = i % 5;
+    const semitones = oct * 12 + PENTATONIC[stepIdx];
+    slots[slotIdx].pitch = Math.round(root * Math.pow(2, semitones / 12));
+    scheduleSaveSlot(slotIdx);
+  }
+  refreshPadLabels();
+  syncUIToFocused();
+}
+
+// ============================================================
+// LIBRARY UI
+// ============================================================
+function renderLibrary() {
+  const list = document.getElementById('lib-list');
+  list.innerHTML = '';
+  if (library.length === 0) {
+    list.innerHTML = '<div class="lib-empty">no owls saved yet</div>';
+    return;
+  }
+  library.forEach((entry) => {
+    const item = document.createElement('div');
+    item.className = 'lib-item';
+    item.innerHTML = `
+      <canvas></canvas>
+      <div class="lib-name">${entry.name}<div class="meta">${hzToNote(entry.owl.pitch)} · ratio ${entry.owl.ratio.toFixed(1)}</div></div>
+      <button class="lib-btn load">LOAD →${focusedSlot + 1}</button>
+      <button class="lib-btn del">✕</button>
+    `;
+    list.appendChild(item);
+    // render preview owl
+    const cv = item.querySelector('canvas');
+    cv.width = 36; cv.height = 36;
+    drawOwl(cv, cv.getContext('2d'), entry.owl, { gesture: 0, tremor: 0, jitter: 0, breathLevel: 0, t: 0 }, { small: true });
+    // wire buttons
+    item.querySelector('.load').addEventListener('click', () => {
+      slots[focusedSlot] = { ...entry.owl, pitch: slots[focusedSlot].pitch };
+      scheduleSaveSlot(focusedSlot);
+      syncUIToFocused();
+      refreshPadLabels();
+      switchTab('play');
+    });
+    item.querySelector('.del').addEventListener('click', () => {
+      library = library.filter(x => x.id !== entry.id);
+      saveLib();
+      renderLibrary();
+    });
+  });
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+(async () => {
+  await loadAll();
+  buildPadGrid();
+  syncUIToFocused();
+  fixCanvasDPR(macroCanvas);
+  fixCanvasDPR(padEcho);
+
+  bindMacro('effort', 'effort', r => r / 100);
+  bindMacro('length', 'length', r => r / 100);
+  bindMacro('rough',  'rough',  r => r / 100);
+  bindMacro('voice',  'voice',  r => r / 100);
+  bindMacro('pitch',  'pitch',  r => r);
+  bindMacro('ratio',  'ratio',  r => r / 10);
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => switchTab(t.dataset.tab));
+  });
+
+  // actions
+  document.getElementById('btn-mirror').addEventListener('click', mirrorAll);
+  document.getElementById('btn-spread').addEventListener('click', spreadPitches);
+  document.getElementById('btn-play').addEventListener('click', () => {
+    if (isPlaying) stopGen(); else startGen();
+  });
+
+  // bpm
+  const bpmEl = document.getElementById('bpm');
+  const bpmVal = document.getElementById('bpm-val');
+  bpmEl.value = bpm;
+  bpmVal.textContent = bpm;
+  bpmEl.addEventListener('input', () => {
+    bpm = +bpmEl.value;
+    bpmVal.textContent = bpm;
+    saveBPM();
+    restartGenIfPlaying();
+  });
+
+  // patterns
+  document.querySelectorAll('.pat-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.pat === pattern);
+    b.addEventListener('click', () => {
+      pattern = b.dataset.pat;
+      document.querySelectorAll('.pat-btn').forEach(x => x.classList.toggle('active', x.dataset.pat === pattern));
+      savePat();
+      pingDir = 1;
+    });
+  });
+
+  // save to library
+  document.getElementById('btn-save').addEventListener('click', () => {
+    const inp = document.getElementById('save-name');
+    const name = (inp.value || slots[focusedSlot].name || 'Owl').trim().substring(0, 24);
+    const id = 'l' + Date.now() + Math.floor(Math.random() * 999);
+    library.push({ id, name, owl: { ...slots[focusedSlot] } });
+    saveLib();
+    inp.value = '';
+    renderLibrary();
+  });
+
+  pulseElement = document.getElementById('pulse');
+
+  window.addEventListener('resize', () => {
+    fixCanvasDPR(macroCanvas);
+    fixCanvasDPR(padEcho);
+  });
+
+  loop();
+})();
+</script>
+</body>
+</html>
