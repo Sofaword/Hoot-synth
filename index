@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>OWL · No. I</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0807;
+    --bg: #14100c;
+    --bg-mid: #1d1812;
+    --bg-up: #261f17;
+    --ink: #d8c8a8;
+    --ink-dim: #8a7558;
+    --ink-faint: #4a3f2c;
+    --amber: #f4a942;
+    --amber-soft: #d99535;
+    --amber-glow: rgba(244, 169, 66, 0.4);
+    --rust: #b25a2a;
+    --moss: #4a6b4f;
+    --slate: #5a7a9e;
+    --ember: #d97441;
+    --breath: 0;
+    --effort: 0.7;
+    --tract: 0.5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 30%, rgba(244,169,66,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at center, var(--bg) 0%, var(--bg-deep) 90%);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 14px 18px;
+    gap: 12px;
+    position: relative;
+  }
+
+  /* grain texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  header {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 4px 8px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+
+  .serial {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .patch {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 0.36em;
+    color: var(--amber);
+    font-weight: 400;
+  }
+
+  .frame {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    gap: 10px;
+  }
+
+  /* OWL */
+  .owl-stage {
+    width: 100%;
+    aspect-ratio: 1 / 0.78;
+    max-height: 230px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    margin: 4px 0 2px;
+  }
+
+  .owl-stage::before {
+    content: '';
+    position: absolute;
+    width: 80%;
+    height: 50%;
+    bottom: 12%;
+    background: radial-gradient(ellipse, var(--amber-glow), transparent 70%);
+    opacity: calc(var(--effort) * (0.15 + var(--breath) * 0.6));
+    filter: blur(20px);
+    pointer-events: none;
+    transition: opacity 0.08s;
+  }
+
+  .owl {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 1;
+    overflow: visible;
+  }
+
+  .owl-body {
+    transform-origin: center 70%;
+    transform: scaleY(calc(1 + var(--breath) * 0.04));
+    transition: transform 0.06s;
+  }
+
+  .pupil {
+    transform-origin: center;
+    transform: scale(calc(0.35 + var(--breath) * 0.55 * var(--effort)));
+    transition: transform 0.05s;
+  }
+
+  .iris {
+    transition: fill 0.1s;
+  }
+
+  .beak {
+    transform-origin: center top;
+    transform: scaleY(calc(1 + var(--breath) * 0.5 * var(--tract)));
+    transition: transform 0.06s;
+  }
+
+  .ear-tuft {
+    transform-origin: center bottom;
+    transform: rotate(calc(var(--breath) * 2deg));
+    transition: transform 0.1s;
+  }
+  .ear-tuft.right { transform: rotate(calc(var(--breath) * -2deg)); }
+
+  /* MACROS */
+  .macros {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .macro {
+    background: linear-gradient(180deg, var(--bg-up) 0%, var(--bg-mid) 100%);
+    border: 1px solid var(--ink-faint);
+    padding: 10px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: ns-resize;
+    position: relative;
+    overflow: hidden;
+  }
+  .macro::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--amber-soft), transparent);
+    opacity: 0.4;
+  }
+
+  .knob {
+    width: 36px;
+    height: 36px;
+    position: relative;
+  }
+
+  .knob svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .knob-arc-bg {
+    fill: none;
+    stroke: var(--ink-faint);
+    stroke-width: 1.5;
+  }
+
+  .knob-arc-fg {
+    fill: none;
+    stroke: var(--amber);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 3px var(--amber-glow));
+  }
+
+  .knob-dot {
+    fill: var(--amber);
+  }
+
+  .macro-name {
+    font-family: 'Cinzel', serif;
+    font-size: 8px;
+    letter-spacing: 0.28em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+
+  .macro-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--amber);
+    font-weight: 300;
+    letter-spacing: 0.05em;
+  }
+
+  /* BREATH */
+  .breath-bar {
+    width: 100%;
+    height: 96px;
+    background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 100%);
+    border: 1px solid var(--ink-faint);
+    position: relative;
+    overflow: hidden;
+    cursor: ns-resize;
+    touch-action: none;
+  }
+
+  .breath-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(0deg,
+      rgba(244,169,66,0.5) 0%,
+      rgba(244,169,66,0.25) 40%,
+      rgba(244,169,66,0.05) 100%);
+    height: calc(var(--breath) * 100%);
+    transition: height 0.05s;
+  }
+  .breath-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+  }
+
+  .breath-label {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 0.36em;
+    color: var(--ink-dim);
+    z-index: 2;
+  }
+
+  .breath-hint {
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-faint);
+    z-index: 2;
+    letter-spacing: 0.04em;
+  }
+
+  .breath-value {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--amber);
+    font-weight: 300;
+    z-index: 2;
+  }
+
+  /* PITCH */
+  .pitch-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .pitch {
+    aspect-ratio: 1 / 1.3;
+    background: var(--bg-mid);
+    border: 1px solid var(--ink-faint);
+    color: var(--ink-dim);
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.12s;
+  }
+
+  .pitch:active { background: var(--bg-up); }
+
+  .pitch.active {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: var(--bg-up);
+    box-shadow: inset 0 0 12px rgba(244,169,66,0.1);
+  }
+
+  /* FOOTER */
+  footer {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: var(--ink-faint);
+    padding-top: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  /* idle pulse for the breath bar when not engaged */
+  @keyframes idle-breath {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.9; }
+  }
+
+  .idle-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 12px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber-soft);
+    animation: idle-breath 2.4s ease-in-out infinite;
+    z-index: 2;
+  }
+
+  .playing .idle-indicator {
+    animation: none;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+  }
+
+</style>
+</head>
+<body>
+
+<header>
+  <span class="serial">OWL · I</span>
+  <span class="patch" id="patchName">TAWNY</span>
+</header>
+
+<div class="frame">
+
+  <!-- OWL VISUAL -->
+  <div class="owl-stage">
+    <svg class="owl" viewBox="0 0 240 188" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bodyGrad" cx="50%" cy="40%" r="60%">
+          <stop offset="0%" stop-color="#3a2e22"/>
+          <stop offset="60%" stop-color="#251c14"/>
+          <stop offset="100%" stop-color="#160f0a"/>
+        </radialGradient>
+        <radialGradient id="chestGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#5a4530"/>
+          <stop offset="100%" stop-color="#2f2418"/>
+        </radialGradient>
+        <radialGradient id="eyeRim" cx="50%" cy="50%" r="50%">
+          <stop offset="60%" stop-color="#1a130c"/>
+          <stop offset="100%" stop-color="#0a0705"/>
+        </radialGradient>
+        <radialGradient id="irisGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fcc46a"/>
+          <stop offset="55%" stop-color="#f4a942"/>
+          <stop offset="100%" stop-color="#a05a18"/>
+        </radialGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2"/>
+        </filter>
+      </defs>
+
+      <g class="owl-body">
+
+        <!-- ear tufts -->
+        <g class="ear-tuft left">
+          <path d="M 72 38 L 78 14 L 92 42 Z" fill="url(#bodyGrad)" stroke="#0a0705" stroke-width="0.5"/>
+        </g>
+        <g class="ear-tuft right">
+          <path d="M 168 38 L 162 14 L 148 42 Z" fill="url(#bodyGrad)" stroke="#0a0705" stroke-width="0.5"/>
+        </g>
+
+        <!-- body shape -->
+        <ellipse cx="120" cy="110" rx="78" ry="72" fill="url(#bodyGrad)" stroke="#0a0705" stroke-width="0.5"/>
+
+        <!-- chest plate -->
+        <ellipse cx="120" cy="125" rx="42" ry="50" fill="url(#chestGrad)" opacity="0.85"/>
+
+        <!-- chest pattern (chevron feathers) -->
+        <g opacity="0.45" stroke="#1a130c" stroke-width="0.8" fill="none">
+          <path d="M 100 110 Q 120 116 140 110"/>
+          <path d="M 96 124 Q 120 132 144 124"/>
+          <path d="M 96 138 Q 120 146 144 138"/>
+          <path d="M 100 152 Q 120 158 140 152"/>
+          <path d="M 106 164 Q 120 168 134 164"/>
+        </g>
+
+        <!-- facial disc outline -->
+        <path d="M 120 38 Q 64 50 64 94 Q 64 122 88 132 Q 120 142 152 132 Q 176 122 176 94 Q 176 50 120 38 Z"
+              fill="#1f1812" opacity="0.6"/>
+
+        <!-- eyes -->
+        <g>
+          <!-- left eye -->
+          <circle cx="92" cy="84" r="22" fill="url(#eyeRim)"/>
+          <circle cx="92" cy="84" r="19" fill="#0a0705"/>
+          <circle class="iris" cx="92" cy="84" r="17" fill="url(#irisGrad)"/>
+          <circle class="pupil" cx="92" cy="84" r="14" fill="#0a0705"/>
+          <circle cx="88" cy="78" r="3" fill="#fff" opacity="0.7"/>
+
+          <!-- right eye -->
+          <circle cx="148" cy="84" r="22" fill="url(#eyeRim)"/>
+          <circle cx="148" cy="84" r="19" fill="#0a0705"/>
+          <circle class="iris" cx="148" cy="84" r="17" fill="url(#irisGrad)"/>
+          <circle class="pupil" cx="148" cy="84" r="14" fill="#0a0705"/>
+          <circle cx="144" cy="78" r="3" fill="#fff" opacity="0.7"/>
+        </g>
+
+        <!-- beak -->
+        <g class="beak">
+          <path d="M 120 102 L 113 118 Q 120 124 127 118 Z" fill="#3a2818" stroke="#0a0705" stroke-width="0.5"/>
+          <path d="M 117 115 Q 120 117 123 115" stroke="#0a0705" stroke-width="0.6" fill="none"/>
+        </g>
+
+        <!-- wing suggestions -->
+        <path d="M 42 110 Q 52 90 60 100 Q 52 130 48 142" fill="none" stroke="#1a130c" stroke-width="0.8" opacity="0.6"/>
+        <path d="M 198 110 Q 188 90 180 100 Q 188 130 192 142" fill="none" stroke="#1a130c" stroke-width="0.8" opacity="0.6"/>
+
+        <!-- feet -->
+        <g opacity="0.8">
+          <path d="M 108 178 L 104 184 M 108 178 L 108 186 M 108 178 L 112 184" stroke="#3a2818" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+          <path d="M 132 178 L 128 184 M 132 178 L 132 186 M 132 178 L 136 184" stroke="#3a2818" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+        </g>
+
+      </g>
+    </svg>
+  </div>
+
+  <!-- MACROS -->
+  <div class="macros">
+    <div class="macro" data-macro="effort" data-value="0.7">
+      <div class="knob">
+        <svg viewBox="0 0 40 40">
+          <circle class="knob-arc-bg" cx="20" cy="20" r="15" stroke-dasharray="70 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-arc-fg" cx="20" cy="20" r="15" stroke-dasharray="49 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-dot" cx="20" cy="20" r="1.5"/>
+        </svg>
+      </div>
+      <div class="macro-name">Effort</div>
+      <div class="macro-val">0.70</div>
+    </div>
+
+    <div class="macro" data-macro="body" data-value="0.5">
+      <div class="knob">
+        <svg viewBox="0 0 40 40">
+          <circle class="knob-arc-bg" cx="20" cy="20" r="15" stroke-dasharray="70 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-arc-fg" cx="20" cy="20" r="15" stroke-dasharray="35 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-dot" cx="20" cy="20" r="1.5"/>
+        </svg>
+      </div>
+      <div class="macro-name">Body</div>
+      <div class="macro-val">0.50</div>
+    </div>
+
+    <div class="macro" data-macro="tract" data-value="0.5">
+      <div class="knob">
+        <svg viewBox="0 0 40 40">
+          <circle class="knob-arc-bg" cx="20" cy="20" r="15" stroke-dasharray="70 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-arc-fg" cx="20" cy="20" r="15" stroke-dasharray="35 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-dot" cx="20" cy="20" r="1.5"/>
+        </svg>
+      </div>
+      <div class="macro-name">Tract</div>
+      <div class="macro-val">0.50</div>
+    </div>
+
+    <div class="macro" data-macro="drift" data-value="0.4">
+      <div class="knob">
+        <svg viewBox="0 0 40 40">
+          <circle class="knob-arc-bg" cx="20" cy="20" r="15" stroke-dasharray="70 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-arc-fg" cx="20" cy="20" r="15" stroke-dasharray="28 100" transform="rotate(135 20 20)"/>
+          <circle class="knob-dot" cx="20" cy="20" r="1.5"/>
+        </svg>
+      </div>
+      <div class="macro-name">Drift</div>
+      <div class="macro-val">0.40</div>
+    </div>
+  </div>
+
+  <!-- BREATH -->
+  <div class="breath-bar" id="breathBar">
+    <span class="breath-label">Breath</span>
+    <span class="breath-value" id="breathValue">0.00</span>
+    <span class="breath-hint">hold &amp; drag</span>
+    <div class="idle-indicator"></div>
+    <div class="breath-fill"></div>
+  </div>
+
+  <!-- PITCH -->
+  <div class="pitch-row" id="pitchRow">
+    <button class="pitch" data-freq="146.83">D₃</button>
+    <button class="pitch active" data-freq="174.61">F₃</button>
+    <button class="pitch" data-freq="196.00">G₃</button>
+    <button class="pitch" data-freq="220.00">A₃</button>
+    <button class="pitch" data-freq="261.63">C₄</button>
+    <button class="pitch" data-freq="293.66">D₄</button>
+    <button class="pitch" data-freq="329.63">E₄</button>
+  </div>
+
+</div>
+
+<footer>
+  <span>geometron · workshop</span>
+  <span>v. 0.1</span>
+</footer>
+
+<script>
+//──────────────────────────────────────────────────────
+//  OWL · No. I — single-voice instrument
+//  one breath in, coupled multi-parameter out
+//──────────────────────────────────────────────────────
+
+const macros = { effort: 0.7, body: 0.5, tract: 0.5, drift: 0.4 };
+let breath = 0;
+let currentPitch = 174.61;       // F3
+let voice = null;
+let ctx, master;
+
+const root = document.documentElement;
+const breathBar = document.getElementById('breathBar');
+const breathValueEl = document.getElementById('breathValue');
+const breathFill = breathBar.querySelector('.breath-fill');
+
+//──────────── audio setup ────────────
+function ensureCtx() {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  master = ctx.createGain();
+  master.gain.value = 0.45;
+  // a gentle output filter to tame harshness
+  const tone = ctx.createBiquadFilter();
+  tone.type = 'highshelf';
+  tone.frequency.value = 6000;
+  tone.gain.value = -6;
+  master.connect(tone);
+  tone.connect(ctx.destination);
+}
+
+//──────────── voice ────────────
+function startVoice() {
+  ensureCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  if (voice) stopVoice(true);
+
+  const t = ctx.currentTime;
+
+  // — sources —
+  const osc1 = ctx.createOscillator(); osc1.type = 'sine';
+  const osc2 = ctx.createOscillator(); osc2.type = 'triangle';
+  const noise = ctx.createBufferSource();
+
+  // noise buffer (pink-ish)
+  const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < data.length; i++) {
+    const white = Math.random() * 2 - 1;
+    last = (last + 0.02 * white) / 1.02;
+    data[i] = last * 3;
+  }
+  noise.buffer = buf;
+  noise.loop = true;
+
+  // — trill LFO (the warble) —
+  const trill = ctx.createOscillator();
+  trill.type = 'sine';
+  trill.frequency.value = 14;
+  const trillToPitch = ctx.createGain();
+  trillToPitch.gain.value = 0;
+  trill.connect(trillToPitch);
+  trillToPitch.connect(osc1.frequency);
+  trillToPitch.connect(osc2.frequency);
+
+  // — trill -> amp wobble —
+  const trillToAmp = ctx.createGain();
+  trillToAmp.gain.value = 0;
+  trill.connect(trillToAmp);
+
+  // — amp envelope (controlled by breath) —
+  const amp = ctx.createGain();
+  amp.gain.value = 0;
+
+  // — tremolo gain that the trill modulates —
+  const trem = ctx.createGain();
+  trem.gain.value = 1;
+  trillToAmp.connect(trem.gain);
+
+  // — formant filters (the tract) —
+  const f1 = ctx.createBiquadFilter();
+  f1.type = 'bandpass';
+  f1.frequency.value = 700; f1.Q.value = 6;
+  const f1g = ctx.createGain(); f1g.gain.value = 1.2;
+
+  const f2 = ctx.createBiquadFilter();
+  f2.type = 'bandpass';
+  f2.frequency.value = 1800; f2.Q.value = 8;
+  const f2g = ctx.createGain(); f2g.gain.value = 0.6;
+
+  // — body lowpass —
+  const body = ctx.createBiquadFilter();
+  body.type = 'lowpass';
+  body.frequency.value = 400; body.Q.value = 1.2;
+
+  // — noise gain (breathiness) —
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0;
+  const noiseBP = ctx.createBiquadFilter();
+  noiseBP.type = 'bandpass';
+  noiseBP.frequency.value = 2000; noiseBP.Q.value = 2;
+
+  // — wiring —
+  osc1.connect(amp);
+  osc2.connect(amp);
+  amp.connect(trem);
+
+  noise.connect(noiseBP); noiseBP.connect(noiseGain); noiseGain.connect(trem);
+
+  trem.connect(body);
+  body.connect(f1); body.connect(f2);
+  f1.connect(f1g); f2.connect(f2g);
+  f1g.connect(master); f2g.connect(master);
+
+  // set base pitches (slight detune)
+  osc1.frequency.value = currentPitch;
+  osc2.frequency.value = currentPitch * 1.005;
+
+  osc1.start(); osc2.start(); trill.start(); noise.start();
+
+  voice = {
+    osc1, osc2, trill, noise,
+    amp, trem, body, f1, f2, f1g, f2g,
+    noiseGain, trillToPitch, trillToAmp,
+    basePitch: currentPitch
+  };
+
+  document.body.classList.add('playing');
+  applyBreath();
+}
+
+function stopVoice(now = false) {
+  if (!voice) return;
+  const t = ctx.currentTime;
+  const fade = now ? 0.02 : 0.18;
+  voice.amp.gain.cancelScheduledValues(t);
+  voice.amp.gain.setValueAtTime(voice.amp.gain.value, t);
+  voice.amp.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+  voice.noiseGain.gain.linearRampToValueAtTime(0, t + fade);
+
+  const v = voice;
+  setTimeout(() => {
+    try {
+      v.osc1.stop(); v.osc2.stop(); v.trill.stop(); v.noise.stop();
+      v.osc1.disconnect(); v.osc2.disconnect(); v.trill.disconnect(); v.noise.disconnect();
+    } catch(e){}
+  }, fade * 1000 + 40);
+
+  voice = null;
+  document.body.classList.remove('playing');
+}
+
+//──────────── THE COUPLING MATRIX ────────────
+//   one input (breath) → many outputs, all gated through macros
+//   this is the basis-change: the user feels ONE knob,
+//   the synthesis hears SIX coordinated parameters
+//─────────────────────────────────────────────
+function applyBreath() {
+  root.style.setProperty('--breath', breath);
+  breathFill.style.height = (breath * 100) + '%';
+  breathValueEl.textContent = breath.toFixed(2);
+
+  if (!voice || !ctx) return;
+  const t = ctx.currentTime;
+  const e = macros.effort;
+  const b = macros.body;
+  const tr = macros.tract;
+  const dr = macros.drift;
+  const br = breath;
+
+  // 1. amplitude — perceptual curve, scaled by effort
+  const ampVal = Math.pow(br, 1.3) * (0.5 + e * 0.5);
+  voice.amp.gain.setTargetAtTime(ampVal, t, 0.025);
+
+  // 2. trill (warble) depth — more breath, more wobble
+  voice.trillToPitch.gain.setTargetAtTime(br * e * 8, t, 0.04);
+  voice.trillToAmp.gain.setTargetAtTime(br * e * 0.35, t, 0.04);
+
+  // 3. trill rate — also rises a bit with breath, more with body
+  voice.trill.frequency.setTargetAtTime(11 + br * 8 + b * 6, t, 0.05);
+
+  // 4. tract formants — tract macro picks vowel, breath opens it
+  const f1Base = 380 + tr * 700;          // 380 (oo) → 1080 (ah)
+  const f2Base = 900 + tr * 1700;         // 900 → 2600
+  voice.f1.frequency.setTargetAtTime(f1Base + br * 250, t, 0.03);
+  voice.f2.frequency.setTargetAtTime(f2Base + br * 600, t, 0.03);
+
+  // 5. body filter — opens with breath, scaled by effort, weighted by body
+  const bodyCut = 280 + br * (1400 + e * 1800) * (0.6 + b * 0.8);
+  voice.body.frequency.setTargetAtTime(bodyCut, t, 0.03);
+  voice.body.Q.setTargetAtTime(0.8 + b * 2.4, t, 0.05);
+
+  // 6. pitch sag (drift) — owls dip pitch as breath crests
+  const sag = br * dr * (currentPitch * 0.06);
+  voice.osc1.frequency.setTargetAtTime(currentPitch - sag, t, 0.06);
+  voice.osc2.frequency.setTargetAtTime(currentPitch * 1.005 - sag, t, 0.06);
+
+  // 7. breathiness — noise mix rises with breath, scaled by (1-body)
+  const noiseAmt = br * (0.04 + (1 - b) * 0.12);
+  voice.noiseGain.gain.setTargetAtTime(noiseAmt, t, 0.04);
+}
+
+//──────────── interactions ────────────
+function attachDrag(el, onMove, onStart, onEnd) {
+  let active = false;
+  let startY = 0;
+  let startVal = 0;
+
+  function down(y) {
+    active = true;
+    startY = y;
+    startVal = onStart();
+    el.setPointerCapture && el.setPointerCapture(currentPointerId);
+  }
+  function move(y) {
+    if (!active) return;
+    const rect = el.getBoundingClientRect();
+    const delta = (startY - y) / rect.height;
+    onMove(Math.max(0, Math.min(1, startVal + delta)));
+  }
+  function up() {
+    if (!active) return;
+    active = false;
+    onEnd && onEnd();
+  }
+
+  let currentPointerId = null;
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    currentPointerId = e.pointerId;
+    down(e.clientY);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!active) return;
+    e.preventDefault();
+    move(e.clientY);
+  });
+  el.addEventListener('pointerup', (e) => { up(); });
+  el.addEventListener('pointercancel', (e) => { up(); });
+  el.addEventListener('pointerleave', (e) => { up(); });
+}
+
+// — breath bar: direct touch sets breath, also gates the voice —
+let breathPressed = false;
+breathBar.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  breathBar.setPointerCapture(e.pointerId);
+  breathPressed = true;
+  startVoice();
+  setBreathFromEvent(e);
+});
+breathBar.addEventListener('pointermove', (e) => {
+  if (!breathPressed) return;
+  e.preventDefault();
+  setBreathFromEvent(e);
+});
+function releaseBreath() {
+  if (!breathPressed) return;
+  breathPressed = false;
+  // gentle ramp down
+  const rampDown = () => {
+    breath = Math.max(0, breath - 0.08);
+    applyBreath();
+    if (breath > 0.01) requestAnimationFrame(rampDown);
+    else { breath = 0; applyBreath(); stopVoice(); }
+  };
+  rampDown();
+}
+breathBar.addEventListener('pointerup', releaseBreath);
+breathBar.addEventListener('pointercancel', releaseBreath);
+breathBar.addEventListener('pointerleave', releaseBreath);
+
+function setBreathFromEvent(e) {
+  const rect = breathBar.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  breath = Math.max(0, Math.min(1, 1 - (y / rect.height)));
+  applyBreath();
+}
+
+// — macro knobs: drag vertically to set value —
+document.querySelectorAll('.macro').forEach(el => {
+  const name = el.dataset.macro;
+  const valEl = el.querySelector('.macro-val');
+  const arcFg = el.querySelector('.knob-arc-fg');
+
+  function updateKnob() {
+    const v = macros[name];
+    valEl.textContent = v.toFixed(2);
+    // arc length: dash 70 = full sweep
+    arcFg.setAttribute('stroke-dasharray', `${(v * 70).toFixed(1)} 100`);
+    root.style.setProperty('--' + name, v);
+  }
+  updateKnob();
+
+  let active = false, startY = 0, startVal = 0;
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    active = true;
+    startY = e.clientY;
+    startVal = macros[name];
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!active) return;
+    e.preventDefault();
+    const delta = (startY - e.clientY) / 140;
+    macros[name] = Math.max(0, Math.min(1, startVal + delta));
+    updateKnob();
+    if (voice) applyBreath();
+  });
+  const end = () => { active = false; };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+});
+
+// — pitch buttons —
+document.querySelectorAll('.pitch').forEach(btn => {
+  btn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.pitch').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPitch = parseFloat(btn.dataset.freq);
+    if (voice) {
+      voice.basePitch = currentPitch;
+      applyBreath();
+    }
+  });
+});
+
+// — preset name shimmer (decorative) —
+const patches = ['TAWNY', 'BARRED', 'SCREECH', 'BURROWING', 'GREAT GREY'];
+let patchIdx = 0;
+document.getElementById('patchName').addEventListener('click', () => {
+  patchIdx = (patchIdx + 1) % patches.length;
+  document.getElementById('patchName').textContent = patches[patchIdx];
+  // each patch is a different macro starting point — playful preset hint
+  const presets = {
+    TAWNY:     { effort: 0.7, body: 0.5, tract: 0.5, drift: 0.4 },
+    BARRED:    { effort: 0.85, body: 0.7, tract: 0.35, drift: 0.6 },
+    SCREECH:   { effort: 0.95, body: 0.3, tract: 0.85, drift: 0.7 },
+    BURROWING: { effort: 0.5, body: 0.4, tract: 0.6, drift: 0.25 },
+    'GREAT GREY': { effort: 0.6, body: 0.85, tract: 0.25, drift: 0.5 }
+  };
+  const p = presets[patches[patchIdx]];
+  for (const k in p) macros[k] = p[k];
+  // refresh knob UIs
+  document.querySelectorAll('.macro').forEach(el => {
+    const v = macros[el.dataset.macro];
+    el.querySelector('.macro-val').textContent = v.toFixed(2);
+    el.querySelector('.knob-arc-fg').setAttribute('stroke-dasharray', `${(v * 70).toFixed(1)} 100`);
+    root.style.setProperty('--' + el.dataset.macro, v);
+  });
+  if (voice) applyBreath();
+});
+
+// init css vars
+for (const k in macros) root.style.setProperty('--' + k, macros[k]);
+
+</script>
+
+</body>
+</html
