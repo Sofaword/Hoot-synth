@@ -1,0 +1,3263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Hoot · v2</title>
+<style>
+  :root {
+    --bg-deep: #06080d;
+    --bg: #0b0f1a;
+    --bg-panel: #0e1422;
+    --ink: #d4c5a0;
+    --ink-dim: #6b6049;
+    --ink-faint: #2a2620;
+    --ink-edge: #3a342a;
+    --amber: #f4a942;
+    --amber-soft: rgba(244,169,66,0.18);
+    --amber-glow: rgba(244,169,66,0.45);
+    --rust: #b25a2a;
+    --moss: #4a6b4f;
+    --slate: #5a7a9e;
+    --crimson: #c25555;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: 'Courier New', ui-monospace, monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 25% 8%, rgba(244,169,66,0.06), transparent 55%),
+      radial-gradient(ellipse at 75% 92%, rgba(74,107,79,0.05), transparent 55%),
+      var(--bg-deep);
+    padding: 10px 8px 24px;
+  }
+  .frame {
+    max-width: 460px;
+    margin: 0 auto;
+    border: 1px solid var(--ink-faint);
+    padding: 12px 10px 14px;
+    background: linear-gradient(180deg, rgba(11,15,26,0.7), rgba(6,8,13,0.92));
+    position: relative;
+  }
+  .frame::before {
+    content: '';
+    position: absolute;
+    top: 4px; left: 4px; right: 4px; bottom: 4px;
+    border: 1px solid var(--ink-faint);
+    pointer-events: none;
+    opacity: 0.35;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--ink-faint);
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+  .title {
+    font-size: 18px;
+    letter-spacing: 0.35em;
+    color: var(--amber);
+    text-shadow: 0 0 12px var(--amber-glow);
+    padding-left: 2px;
+  }
+  .ver { font-size: 9px; color: var(--ink-dim); letter-spacing: 0.2em; }
+
+  /* ===== BIG FEATURED OWL ===== */
+  .big-stage {
+    position: relative;
+    background: linear-gradient(180deg, #0a0d15, #060810);
+    border: 1px solid var(--ink-faint);
+    margin-bottom: 8px;
+    overflow: hidden;
+    aspect-ratio: 16 / 11;
+  }
+  .big-stage canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .big-name {
+    position: absolute;
+    top: 6px; left: 8px;
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.2em;
+    pointer-events: none;
+  }
+  .big-pitch {
+    position: absolute;
+    top: 6px; right: 8px;
+    font-size: 9px;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+  }
+  .hoot-btn {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10,13,21,0.85);
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    padding: 8px 22px;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 0 12px rgba(244,169,66,0.25);
+    transition: background 0.1s;
+  }
+  .hoot-btn:active {
+    background: var(--amber);
+    color: var(--bg-deep);
+  }
+
+  /* ===== Channel bars ===== */
+  .channels {
+    display: flex;
+    gap: 4px;
+    height: 12px;
+    margin-bottom: 10px;
+    padding: 2px;
+    border: 1px solid var(--ink-faint);
+    background: var(--bg-panel);
+  }
+  .ch {
+    flex: 1;
+    background: #050810;
+    position: relative;
+    overflow: hidden;
+  }
+  .ch-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    transition: height 0.04s linear;
+  }
+  .ch[data-c="0"] .ch-fill { background: linear-gradient(180deg, var(--amber), var(--rust)); }
+  .ch[data-c="1"] .ch-fill { background: linear-gradient(180deg, #d4c5a0, #6b6049); }
+  .ch[data-c="2"] .ch-fill { background: linear-gradient(180deg, var(--moss), #2a3a2c); }
+  .ch[data-c="3"] .ch-fill { background: linear-gradient(180deg, var(--slate), #2c3a4e); }
+
+  /* ===== Knob panel: 7 per-slot macros + 1 global OUT volume ===== */
+  .knobs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-areas:
+      "pitch  ratio  breath"
+      "effort length rough"
+      "out    voice  .";
+    gap: 6px;
+    background: var(--bg-panel);
+    border: 1px solid var(--ink-faint);
+    padding: 10px 8px 8px;
+    margin-bottom: 12px;
+  }
+  .knob[data-key="pitch"]  { grid-area: pitch; }
+  .knob[data-key="ratio"]  { grid-area: ratio; }
+  .knob[data-key="breath"] { grid-area: breath; }
+  .knob[data-key="effort"] { grid-area: effort; }
+  .knob[data-key="length"] { grid-area: length; }
+  .knob[data-key="rough"]  { grid-area: rough; }
+  .knob[data-key="voice"]  { grid-area: voice; }
+  .knob[data-key="out"]    { grid-area: out; }
+  /* OUT is global, not per-slot. Subtle visual distinction so it doesn't
+     get confused with the per-slot macros. */
+  .knob.global {
+    border-color: rgba(90,122,158,0.25);
+    background: rgba(90,122,158,0.04);
+  }
+  .knob.global .knob-lbl {
+    color: var(--slate);
+  }
+  .knob.global .knob-lbl::before {
+    content: '◇ ';
+    color: var(--slate);
+  }
+  .knob {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 2px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+  }
+  .knob.featured {
+    border-color: rgba(244,169,66,0.25);
+    background: rgba(244,169,66,0.04);
+  }
+  .knob-lbl {
+    font-size: 9px;
+    color: var(--ink);
+    letter-spacing: 0.15em;
+    margin-bottom: 4px;
+  }
+  .knob.featured .knob-lbl { color: var(--amber); }
+  .knob.featured .knob-lbl::before {
+    content: '◆ ';
+    color: var(--amber);
+  }
+  .knob-canvas {
+    width: 56px;
+    height: 56px;
+    cursor: ns-resize;
+    touch-action: none;
+  }
+  .knob-val {
+    font-size: 9px;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    margin-top: 3px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ===== PARLIAMENT: 7-owl hex play-field ===== */
+  .parl-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+    padding: 0 2px;
+  }
+  .parl-title {
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.25em;
+  }
+  .parl-actions {
+    display: flex;
+    gap: 5px;
+  }
+  .parl-actions .btn {
+    padding: 4px 10px;
+    font-size: 9px;
+  }
+  .hex-field {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(244,169,66,0.03), transparent 60%),
+      linear-gradient(180deg, #0a0d15, #060810);
+    border: 1px solid var(--ink-faint);
+    margin-bottom: 4px;
+    /* Prevent browser from interpreting drags inside the play area as scroll
+       or pinch-zoom — required for fling gesture to register. */
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+  .hex-geometry {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hex-cell {
+    position: absolute;
+    width: 28%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #0d1320, #06080d);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.12s, box-shadow 0.12s;
+    z-index: 1;
+    touch-action: none;
+  }
+  .hex-cell.selected {
+    border-color: var(--amber);
+    box-shadow: 0 0 10px rgba(244,169,66,0.35), inset 0 0 12px rgba(244,169,66,0.10);
+  }
+  .hex-cell.charging {
+    border-color: var(--amber);
+    box-shadow: 0 0 22px rgba(244,169,66,0.85), inset 0 0 18px rgba(244,169,66,0.30);
+    animation: chargePulse 0.6s ease-in-out infinite alternate;
+  }
+  @keyframes chargePulse {
+    from { box-shadow: 0 0 18px rgba(244,169,66,0.55), inset 0 0 14px rgba(244,169,66,0.20); }
+    to   { box-shadow: 0 0 28px rgba(244,169,66,1.00), inset 0 0 22px rgba(244,169,66,0.40); }
+  }
+  .hex-cell:active {
+    box-shadow: 0 0 14px rgba(244,169,66,0.55), inset 0 0 8px rgba(244,169,66,0.20);
+  }
+  .hex-cell canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .hex-pitch {
+    position: absolute;
+    bottom: 3px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    background: rgba(6,8,13,0.7);
+    padding: 0 3px;
+    border-radius: 2px;
+  }
+  .hex-cell.selected .hex-pitch { color: var(--amber); }
+
+  .btn {
+    background: #0a0d15;
+    color: var(--amber);
+    border: 1px solid var(--ink-edge);
+    padding: 6px 10px;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: center;
+    transition: background 0.1s;
+  }
+  .btn:active { background: var(--amber-soft); }
+  .btn.minor { color: var(--slate); }
+  .btn.warn { color: var(--rust); }
+
+  .play-hint {
+    text-align: center;
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-dim);
+    padding: 8px 0;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .tab-btn.active {
+    color: var(--amber);
+    border-bottom-color: var(--amber);
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ===== Theme picker ===== */
+  .theme-picker-head {
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.25em;
+    margin-bottom: 6px;
+    padding: 0 2px;
+  }
+  .theme-picker {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .theme-btn {
+    background: var(--bg-panel);
+    color: var(--ink);
+    border: 1px solid var(--ink-faint);
+    padding: 8px 6px;
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.10em;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .theme-btn:hover { border-color: var(--ink-edge); }
+  .theme-btn.active {
+    border-color: var(--amber);
+    color: var(--amber);
+    box-shadow: inset 0 0 8px rgba(244,169,66,0.10);
+  }
+
+  /* ===== Mapping editor ===== */
+  .mapping-intro {
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.10em;
+    line-height: 1.6;
+    text-align: center;
+    margin-bottom: 12px;
+    padding: 8px;
+    border: 1px dashed var(--ink-faint);
+  }
+  .mapping-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .map-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 50px;
+    gap: 4px;
+    align-items: center;
+    background: var(--bg-panel);
+    border: 1px solid var(--ink-faint);
+    padding: 6px 8px;
+  }
+  .map-axis {
+    font-size: 9px;
+    color: var(--amber);
+    letter-spacing: 0.10em;
+    font-weight: bold;
+  }
+  .map-axis-sub {
+    font-size: 7px;
+    color: var(--ink-dim);
+    letter-spacing: 0.05em;
+    display: block;
+    margin-top: 1px;
+  }
+  .map-source {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .map-select {
+    background: #0a0d15;
+    color: var(--ink);
+    border: 1px solid var(--ink-edge);
+    font-family: inherit;
+    font-size: 9px;
+    padding: 3px 4px;
+    flex: 1;
+    letter-spacing: 0.05em;
+  }
+  .map-select:focus { outline: 1px solid var(--amber); }
+  .map-invert {
+    background: #0a0d15;
+    color: var(--ink-dim);
+    border: 1px solid var(--ink-edge);
+    font-family: inherit;
+    font-size: 9px;
+    padding: 3px 6px;
+    cursor: pointer;
+    width: 30px;
+  }
+  .map-invert.on {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+  .map-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .mapping-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  /* ===== Voice mode / glide strip ===== */
+  .play-strip {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-panel);
+    border: 1px solid var(--ink-faint);
+    padding: 6px 8px;
+    margin-bottom: 6px;
+  }
+  .vm-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .vm-label {
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 0.15em;
+    margin-right: 4px;
+  }
+  .vm-btn {
+    background: transparent;
+    color: var(--ink-dim);
+    border: 1px solid var(--ink-edge);
+    font-family: inherit;
+    font-size: 9px;
+    padding: 3px 7px;
+    letter-spacing: 0.10em;
+    cursor: pointer;
+  }
+  .vm-btn:active { background: var(--amber-soft); }
+  .vm-btn.active {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: var(--amber-soft);
+  }
+  .vm-glide {
+    display: grid;
+    grid-template-columns: auto 1fr 36px;
+    align-items: center;
+    gap: 6px;
+  }
+  .vm-glide input[type="range"] {
+    width: 100%;
+    height: 18px;
+    background: transparent;
+    -webkit-appearance: none;
+  }
+  .vm-glide input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px; background: var(--ink-edge);
+  }
+  .vm-glide input[type="range"]::-moz-range-track {
+    height: 3px; background: var(--ink-edge);
+  }
+  .vm-glide input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 11px; height: 11px;
+    background: var(--amber); border: 1px solid var(--bg-deep);
+    margin-top: -4px;
+  }
+  .vm-glide input[type="range"]::-moz-range-thumb {
+    width: 11px; height: 11px; background: var(--amber); border: 1px solid var(--bg-deep);
+  }
+  .vm-val {
+    font-size: 9px;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  /* ===== Slot dropdowns ===== */
+  .slot-dropdowns {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-top: 6px;
+    margin-bottom: 4px;
+  }
+  .slot-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+  .slot-drop-num {
+    font-size: 7px;
+    color: var(--ink-dim);
+    letter-spacing: 0.10em;
+    text-align: center;
+  }
+  .slot-drop select {
+    background: var(--bg-panel);
+    color: var(--ink);
+    border: 1px solid var(--ink-faint);
+    font-family: inherit;
+    font-size: 8px;
+    padding: 2px 2px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+  .slot-drop select:focus { outline: 1px solid var(--amber); }
+
+  /* ===== Save row ===== */
+  .save-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .save-btn {
+    color: var(--ink);
+    border-style: dashed;
+    font-size: 9px;
+    padding: 7px 4px;
+    letter-spacing: 0.12em;
+  }
+  .save-btn:active {
+    color: var(--amber);
+    border-style: solid;
+  }
+
+  /* ===== Owlery ===== */
+  .owlery-intro {
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.10em;
+    line-height: 1.7;
+    text-align: center;
+    margin-bottom: 14px;
+    padding: 10px;
+    border: 1px dashed var(--ink-faint);
+    font-style: italic;
+  }
+  .owlery-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 9px;
+    color: var(--amber);
+    letter-spacing: 0.25em;
+    margin: 14px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--ink-faint);
+  }
+  .ow-count {
+    font-size: 8px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+  }
+  .owlery-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .ow-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-panel);
+    border: 1px solid var(--ink-faint);
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+    user-select: none;
+  }
+  .ow-item:hover { border-color: var(--ink-edge); }
+  .ow-item.deleting {
+    background: rgba(178,90,42,0.10);
+    border-color: var(--rust);
+  }
+  .ow-thumb {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(180deg, #0d1320, #06080d);
+    border: 1px solid var(--ink-faint);
+    display: block;
+  }
+  .ow-thumb-multi {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+  }
+  .ow-thumb-multi canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .ow-name {
+    font-size: 10px;
+    color: var(--ink);
+    letter-spacing: 0.05em;
+  }
+  .ow-meta {
+    font-size: 8px;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .ow-cast {
+    background: transparent;
+    color: var(--slate);
+    border: 1px solid var(--ink-edge);
+    font-family: inherit;
+    font-size: 8px;
+    padding: 3px 6px;
+    cursor: pointer;
+    letter-spacing: 0.10em;
+  }
+  .ow-cast:active { color: var(--amber); border-color: var(--amber); }
+  .owlery-empty {
+    font-size: 9px;
+    color: var(--ink-dim);
+    text-align: center;
+    padding: 14px;
+    font-style: italic;
+  }
+
+  /* Toast for save confirmation */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-panel);
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    padding: 8px 16px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    box-shadow: 0 0 14px rgba(244,169,66,0.30);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ===== Intro modal ===== */
+  .intro-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(6,8,13,0.92);
+    z-index: 200;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 30px 12px;
+  }
+  .intro-modal.show { display: flex; }
+  .intro-card {
+    max-width: 440px;
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--amber);
+    box-shadow: 0 0 24px rgba(244,169,66,0.30);
+    padding: 22px 20px;
+    margin: auto;
+  }
+  .intro-title {
+    font-size: 28px;
+    letter-spacing: 0.35em;
+    color: var(--amber);
+    text-align: center;
+    text-shadow: 0 0 14px var(--amber-glow);
+    margin-bottom: 4px;
+  }
+  .intro-sub {
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+    text-align: center;
+    font-style: italic;
+    margin-bottom: 22px;
+  }
+  .intro-section {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--ink-faint);
+  }
+  .intro-section:last-of-type {
+    border-bottom: none;
+  }
+  .intro-h {
+    font-size: 10px;
+    color: var(--amber);
+    letter-spacing: 0.28em;
+    margin-bottom: 6px;
+  }
+  .intro-section p {
+    font-size: 11px;
+    color: var(--ink);
+    line-height: 1.55;
+    margin-bottom: 8px;
+  }
+  .intro-section p:last-child { margin-bottom: 0; }
+  .intro-key {
+    color: var(--amber);
+    font-weight: bold;
+    letter-spacing: 0.06em;
+  }
+  .intro-go {
+    width: 100%;
+    background: transparent;
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    padding: 12px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.30em;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.15s;
+  }
+  .intro-go:active {
+    background: var(--amber);
+    color: var(--bg-deep);
+  }
+  .intro-foot {
+    font-size: 8px;
+    color: var(--ink-dim);
+    text-align: center;
+    letter-spacing: 0.12em;
+    margin-top: 10px;
+    font-style: italic;
+  }
+  .intro-skip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .intro-skip input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--amber);
+    cursor: pointer;
+  }
+  .intro-skip span {
+    font-size: 10px;
+    color: var(--ink);
+    letter-spacing: 0.10em;
+  }
+
+  .foot {
+    margin-top: 12px;
+    font-size: 8px;
+    color: var(--ink-dim);
+    text-align: center;
+    letter-spacing: 0.15em;
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="header">
+    <div class="title">HOOT</div>
+    <div class="ver">v2 · PARLIAMENT</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="play">PLAY</button>
+    <button class="tab-btn" data-tab="owlery">OWLERY</button>
+    <button class="tab-btn" data-tab="mapping">MAPPING</button>
+  </div>
+
+  <!-- ============ PLAY TAB ============ -->
+  <div class="tab-pane active" data-pane="play">
+
+  <!-- BIG FEATURED OWL -->
+  <div class="big-stage">
+    <div class="big-name" id="bigName">OWL 1</div>
+    <div class="big-pitch" id="bigPitch">––</div>
+    <canvas id="bigOwl"></canvas>
+    <button class="hoot-btn" id="hootBtn">HOOT</button>
+  </div>
+
+  <!-- Channel bars -->
+  <div class="channels" id="channels">
+    <div class="ch" data-c="0"><div class="ch-fill"></div></div>
+    <div class="ch" data-c="1"><div class="ch-fill"></div></div>
+    <div class="ch" data-c="2"><div class="ch-fill"></div></div>
+    <div class="ch" data-c="3"><div class="ch-fill"></div></div>
+  </div>
+
+  <!-- 6 rotary knobs -->
+  <div class="knobs" id="knobs"></div>
+
+  <!-- 7-owl hex play-field -->
+  <div class="parl-head">
+    <div class="parl-title">PARLIAMENT</div>
+    <div class="parl-actions">
+      <button class="btn minor" id="castBtn">PITCH CAST</button>
+      <button class="btn warn" id="stopBtn">STOP</button>
+    </div>
+  </div>
+
+  <!-- Voice mode + glide strip -->
+  <div class="play-strip">
+    <div class="vm-group">
+      <span class="vm-label">VOICE</span>
+      <button class="vm-btn active" data-vm="poly">POLY</button>
+      <button class="vm-btn" data-vm="mono">MONO</button>
+      <button class="vm-btn" data-vm="legato">LEGATO</button>
+    </div>
+    <div class="vm-glide">
+      <span class="vm-label">GLIDE</span>
+      <input type="range" id="glideSlider" min="0" max="600" value="100" step="5">
+      <span class="vm-val" id="glideVal">100</span>
+    </div>
+  </div>
+
+  <div class="hex-field" id="hexField">
+    <!-- Sacred-geometry / isometric-cube illusion layer.
+         Three spokes from center to alternating vertices + outer hexagon
+         reads as a cube viewed isometrically. Inscribed circle for the
+         old-world-magic vibe without crowding. -->
+    <svg class="hex-geometry" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+      <!-- Inscribed circle (faint, behind everything) -->
+      <circle cx="50" cy="50" r="40" fill="none"
+              stroke="rgba(244,169,66,0.07)" stroke-width="0.3"/>
+      <!-- Outer hexagon perimeter -->
+      <polyline points="50,13 83,32 83,68 50,87 17,68 17,32 50,13"
+                fill="none"
+                stroke="rgba(244,169,66,0.14)"
+                stroke-width="0.4"
+                stroke-linejoin="round"/>
+      <!-- The three spokes that produce the cube illusion -->
+      <line x1="50" y1="50" x2="50" y2="13"
+            stroke="rgba(244,169,66,0.22)" stroke-width="0.5" stroke-linecap="round"/>
+      <line x1="50" y1="50" x2="83" y2="68"
+            stroke="rgba(244,169,66,0.22)" stroke-width="0.5" stroke-linecap="round"/>
+      <line x1="50" y1="50" x2="17" y2="68"
+            stroke="rgba(244,169,66,0.22)" stroke-width="0.5" stroke-linecap="round"/>
+      <!-- Spell traces — populated as you tap owls. Lines fade over time,
+           so quick successive taps draw a glyph; pauses let it dissolve. -->
+      <g id="spellTraces"></g>
+      <!-- Tiny center dot — the "root" anchor -->
+      <circle cx="50" cy="50" r="0.9" fill="rgba(244,169,66,0.35)"/>
+    </svg>
+  </div>
+  <!-- Per-slot owl dropdowns -->
+  <div class="slot-dropdowns" id="slotDropdowns"></div>
+
+  <div class="play-hint">TAP THE HEX TO PLAY · HOLD TO CHARGE · FLING TO ANOTHER OWL</div>
+
+  <!-- Save actions -->
+  <div class="save-row">
+    <button class="btn save-btn" id="saveOwlBtn">⤓ SEND TO OWLERY</button>
+    <button class="btn save-btn" id="saveParlBtn">⤓ ROOST PARLIAMENT</button>
+  </div>
+  </div><!-- end PLAY pane -->
+
+  <!-- ============ OWLERY TAB ============ -->
+  <div class="tab-pane" data-pane="owlery">
+    <div class="owlery-intro">
+      The Owlery houses single owls.<br>
+      The Roost holds whole Parliaments.<br>
+      Tap any to load. Long-press to delete.
+    </div>
+
+    <div class="owlery-section-head">
+      <span>OWLERY · SINGLE OWLS</span>
+      <span class="ow-count" id="owleryCount">0</span>
+    </div>
+    <div class="owlery-list" id="owleryList"></div>
+
+    <div class="owlery-section-head">
+      <span>ROOST · PARLIAMENTS</span>
+      <span class="ow-count" id="roostCount">0</span>
+    </div>
+    <div class="owlery-list" id="roostList"></div>
+  </div><!-- end OWLERY pane -->
+
+  <!-- ============ MAPPING TAB ============ -->
+  <div class="tab-pane" data-pane="mapping">
+
+    <!-- Theme picker -->
+    <div class="theme-picker-head">THEME</div>
+    <div class="theme-picker" id="themePicker"></div>
+
+    <div class="mapping-intro">
+      Reroute any visual axis to any parameter.<br>
+      Change the source · invert · range — saved instantly.
+    </div>
+    <div class="mapping-list" id="mappingList"></div>
+    <div class="mapping-actions">
+      <button class="btn minor" id="reopenIntroBtn">SHOW INTRO</button>
+      <button class="btn minor" id="mapResetBtn">RESET TO DEFAULTS</button>
+    </div>
+  </div><!-- end MAPPING pane -->
+
+  <div class="foot">ONE BREATH · MANY COUPLED MOTIONS</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============ FIRST-RUN INTRO MODAL ============ -->
+<div class="intro-modal" id="introModal">
+  <div class="intro-card">
+    <div class="intro-title">HOOT</div>
+    <div class="intro-sub">A playable instrument for left-field bass</div>
+
+    <div class="intro-section">
+      <div class="intro-h">WHAT THIS IS</div>
+      <p>Hoot is a finished instrument, not a synth you have to design before you can play.
+      Seven owls sit on a hexagonal play-field. Tap one to play it. Each owl is a preset slot.</p>
+    </div>
+
+    <div class="intro-section">
+      <div class="intro-h">START HERE</div>
+      <p><span class="intro-key">PITCH</span> and <span class="intro-key">RATIO</span>
+      are where the most interesting sounds live. Pitch sets the fundamental frequency
+      (20–200 Hz, weighted low). Ratio sets the FM character, from clean integer
+      ratios (warm) to inharmonic territory (bell-like, metallic, unsettling).</p>
+      <p>Twist those first. The other knobs add detail.</p>
+    </div>
+
+    <div class="intro-section">
+      <div class="intro-h">PITCH CAST</div>
+      <p>Tap <span class="intro-key">PITCH CAST</span> to broadcast the selected owl's
+      character across all 7 slots as a major scale. The cast retunes each slot so the
+      whole row sounds like one instrument played across an octave — not seven copies
+      of the same patch transposed crudely. This is the move that makes Hoot playable
+      as a melodic instrument.</p>
+    </div>
+
+    <div class="intro-section">
+      <div class="intro-h">HOLD AND FLING</div>
+      <p>Tap to play. Press and hold to sustain. Swipe from one owl to another to
+      <em>fling</em> the source's character at the destination — fast flings hit harder.
+      The line that draws on the hex tells you what you did.</p>
+    </div>
+
+    <div class="intro-section">
+      <div class="intro-h">VOICE MODES</div>
+      <p><span class="intro-key">POLY</span> — owls overlap freely.
+      <span class="intro-key">MONO</span> — only one rings at a time.
+      <span class="intro-key">LEGATO</span> — pitch glides between notes.
+      Glide time is on the slider.</p>
+    </div>
+
+    <div class="intro-section">
+      <div class="intro-h">PRESETS</div>
+      <p>The <span class="intro-key">OWLERY</span> tab holds saved owls and parliaments.
+      Tap a row to load. Long-press to delete. The dropdowns above the hex let you
+      load owls directly into specific slots.</p>
+    </div>
+
+    <button class="intro-go" id="introGoBtn">START HOOTING</button>
+    <label class="intro-skip">
+      <input type="checkbox" id="introSkipNext">
+      <span>Don't show this again</span>
+    </label>
+    <div class="intro-foot">You can reopen this anytime from the MAPPING tab.</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   HOOT v2 — 7-owl Parliament as playable hex field.
+   ============================================================ */
+
+/* ---------- THEME TOKENS ----------
+   Single source of truth for the visual identity.
+   Edit a theme here (or pick one via the MAPPING tab) to retheme the
+   entire UI. Synth code never references colors directly — it reads
+   either CSS vars (applied by setTheme) or this object.
+
+   Eventually moves to themes.json loaded at boot.
+*/
+const THEMES = {
+  fieldNotebook: {
+    label: 'Field Notebook',
+    css: {
+      '--bg-deep':    '#06080d',
+      '--bg':         '#0b0f1a',
+      '--bg-panel':   '#0e1422',
+      '--ink':        '#d4c5a0',
+      '--ink-dim':    '#6b6049',
+      '--ink-faint':  '#2a2620',
+      '--ink-edge':   '#3a342a',
+      '--amber':      '#f4a942',
+      '--amber-soft': 'rgba(244,169,66,0.18)',
+      '--amber-glow': 'rgba(244,169,66,0.45)',
+      '--rust':       '#b25a2a',
+      '--moss':       '#4a6b4f',
+      '--slate':      '#5a7a9e',
+      '--crimson':    '#c25555',
+    },
+    owl: {
+      outline:   '#0a0807',  // body/head outline stroke
+      beakFill:  '#15100c',
+      beakStroke: '#0a0807',
+      auraHueRgb: '244,169,66',   // breath aura color (rgba prefix)
+      particleHueRgba: '90,122,158', // breath particles
+    },
+    ratioBands: {
+      sub:        { hue: 358 },   // deep crimson
+      harmonic:   { hue: 38  },   // warm amber/gold
+      inharmonic: { hue: 258 },   // indigo/violet
+    },
+    bodyLightness:  { base: 32, range: 8 },  // hsl L%
+    headLightness:  { base: 26, range: 6 },
+    bodySaturation: { mult: 78 },            // hsl S%
+    headSaturation: { mult: 72 },
+  },
+
+  mossGrove: {
+    label: 'Moss Grove',
+    css: {
+      '--bg-deep':    '#0a0e0a',
+      '--bg':         '#0e1410',
+      '--bg-panel':   '#111a13',
+      '--ink':        '#cfd9b8',
+      '--ink-dim':    '#6c7e5d',
+      '--ink-faint':  '#2a2f25',
+      '--ink-edge':   '#3a4232',
+      '--amber':      '#a7c267',  // lichen green accent
+      '--amber-soft': 'rgba(167,194,103,0.18)',
+      '--amber-glow': 'rgba(167,194,103,0.45)',
+      '--rust':       '#7d8a3e',
+      '--moss':       '#4a6b4f',
+      '--slate':      '#6e8a78',
+      '--crimson':    '#9a6a55',
+    },
+    owl: {
+      outline:   '#080a07',
+      beakFill:  '#10140d',
+      beakStroke: '#080a07',
+      auraHueRgb: '167,194,103',
+      particleHueRgba: '120,160,120',
+    },
+    ratioBands: {
+      sub:        { hue: 18  },  // rust earth
+      harmonic:   { hue: 88  },  // moss green
+      inharmonic: { hue: 200 },  // sky blue
+    },
+    bodyLightness:  { base: 30, range: 10 },
+    headLightness:  { base: 24, range: 8 },
+    bodySaturation: { mult: 60 },
+    headSaturation: { mult: 55 },
+  },
+
+  bone: {
+    label: 'Bone',
+    css: {
+      '--bg-deep':    '#1a1612',
+      '--bg':         '#221d18',
+      '--bg-panel':   '#2a241e',
+      '--ink':        '#ede4d1',
+      '--ink-dim':    '#998a73',
+      '--ink-faint':  '#3d352c',
+      '--ink-edge':   '#5a4f42',
+      '--amber':      '#ede4d1',
+      '--amber-soft': 'rgba(237,228,209,0.18)',
+      '--amber-glow': 'rgba(237,228,209,0.40)',
+      '--rust':       '#a8765a',
+      '--moss':       '#7d8870',
+      '--slate':      '#8a9aa8',
+      '--crimson':    '#c4836e',
+    },
+    owl: {
+      outline:   '#1a1612',
+      beakFill:  '#1a1612',
+      beakStroke: '#1a1612',
+      auraHueRgb: '237,228,209',
+      particleHueRgba: '180,170,150',
+    },
+    ratioBands: {
+      sub:        { hue: 12  },  // burnt sienna
+      harmonic:   { hue: 38  },  // bone warm
+      inharmonic: { hue: 220 },  // cold blue
+    },
+    bodyLightness:  { base: 60, range: 12 },  // brighter — bone palette
+    headLightness:  { base: 52, range: 10 },
+    bodySaturation: { mult: 45 },
+    headSaturation: { mult: 40 },
+  },
+};
+
+let CURRENT_THEME_KEY = 'fieldNotebook';
+function getTheme() { return THEMES[CURRENT_THEME_KEY]; }
+
+function setTheme(themeKey) {
+  if (!THEMES[themeKey]) return;
+  CURRENT_THEME_KEY = themeKey;
+  const t = THEMES[themeKey];
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(t.css)) {
+    root.style.setProperty(k, v);
+  }
+  // Knobs are canvas-rendered — they need a redraw to pick up new colors.
+  if (typeof knobObjs !== 'undefined') {
+    Object.values(knobObjs).forEach(k => k.draw && k.draw());
+  }
+}
+
+/* ---------- PARAMETER CURVES ---------- */
+function pitchHz(k) { return 20 * Math.pow(10, Math.pow(k, 2)); }
+function pitchKnobForHz(hz) {
+  hz = Math.max(20, Math.min(200, hz));
+  return Math.sqrt(Math.log10(hz / 20));
+}
+function fmRatio(k) { return 0.1 + k * 7.9; }
+
+/* ---------- VOICE: synthesis core ---------- */
+let audioCtx = null;
+let masterOut = null;
+let masterVolPct = 50;
+const activeVoices = new Set();
+
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterOut = audioCtx.createGain();
+    masterOut.gain.value = Math.pow(masterVolPct / 100, 2) * 1.2;
+    masterOut.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+let noiseBuffer = null;
+/* Build a waveshaper curve for the ROUGH parameter.
+   At rough=0 the curve is a straight line (no distortion).
+   As rough increases, the curve gets slightly asymmetric soft-clip-ish shape
+   which adds even harmonics — the kind that sound like "bite" or "strain". */
+function makeRoughCurve(roughVal) {
+  const n = 1024;
+  const curve = new Float32Array(n);
+  const amount = roughVal * 0.6; // 0..0.6 — keep it subtle so it adds character, not grunge
+  for (let i = 0; i < n; i++) {
+    const x = (i * 2) / n - 1; // -1..1
+    // Soft-clip with slight asymmetry to get even harmonics, not just odd
+    const asym = x + amount * 0.15 * x * x;
+    curve[i] = Math.tanh(asym * (1 + amount * 2)) * (1 / Math.tanh(1 + amount * 2));
+  }
+  return curve;
+}
+
+function getNoiseBuffer(durationSec) {
+  if (!noiseBuffer || noiseBuffer.duration < durationSec) {
+    const sr = audioCtx.sampleRate;
+    const n = Math.max(sr * 4, Math.floor(sr * durationSec));
+    noiseBuffer = audioCtx.createBuffer(1, n, sr);
+    const d = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1);
+  }
+  return noiseBuffer;
+}
+
+function hoot(patch, opts = {}) {
+  ensureAudio();
+  const ctx = audioCtx;
+  const now = ctx.currentTime;
+
+  const f0 = pitchHz(patch.pitch);
+  const ratio = fmRatio(patch.ratio);
+
+  const attack  = 0.08 + patch.length * 0.35;
+  const sustain = 0.10 + patch.length * 0.55;
+  const release = 0.20 + patch.length * 0.85;
+  const total   = attack + sustain + release;
+
+  // Glide: if a "from" frequency is provided and glideTime > 0, the carrier
+  // and modulator start at `from` and ramp exponentially to `f0` over glideTime.
+  // Otherwise, no glide (carrier/modulator start at their target frequencies).
+  const glideTime = Math.max(0, opts.glideTime || 0);
+  const fromHz = opts.fromHz && opts.fromHz > 0 ? opts.fromHz : null;
+  const useGlide = glideTime > 0 && fromHz && Math.abs(fromHz - f0) > 0.5;
+
+  const breath = ctx.createConstantSource();
+  breath.offset.value = 0;
+  breath.offset.setValueAtTime(0, now);
+  breath.offset.linearRampToValueAtTime(patch.effort, now + attack);
+  breath.offset.linearRampToValueAtTime(patch.effort * 0.82, now + attack + sustain);
+  breath.offset.linearRampToValueAtTime(0, now + total);
+  breath.start(now);
+
+  const breathNeg = ctx.createGain();
+  breathNeg.gain.value = -1;
+  breath.connect(breathNeg);
+
+  const carrier = ctx.createOscillator();
+  carrier.type = 'sine';
+  if (useGlide) {
+    carrier.frequency.setValueAtTime(fromHz, now);
+    carrier.frequency.exponentialRampToValueAtTime(f0, now + glideTime);
+  } else {
+    carrier.frequency.value = f0;
+  }
+  const sagAmt = ctx.createGain();
+  sagAmt.gain.value = f0 * 0.04;
+  breathNeg.connect(sagAmt);
+  sagAmt.connect(carrier.frequency);
+
+  const modulator = ctx.createOscillator();
+  modulator.type = 'sine';
+  if (useGlide) {
+    modulator.frequency.setValueAtTime(fromHz * ratio, now);
+    modulator.frequency.exponentialRampToValueAtTime(f0 * ratio, now + glideTime);
+  } else {
+    modulator.frequency.value = f0 * ratio;
+  }
+  const modSag = ctx.createGain();
+  modSag.gain.value = f0 * ratio * 0.04;
+  breathNeg.connect(modSag);
+  modSag.connect(modulator.frequency);
+
+  const fmDepth = ctx.createGain();
+  fmDepth.gain.value = 0;
+  modulator.connect(fmDepth);
+  fmDepth.connect(carrier.frequency);
+
+  // FM index — moderate at low pitches (was previously too aggressive,
+  // creating an unnatural "synthy" character). Still gets meaty when
+  // ratio is cranked because the modulator frequency does the work.
+  const fmIndex = 0.8 + (1 - patch.pitch) * 2.2;
+  const fmAmount = ctx.createGain();
+  fmAmount.gain.value = f0 * fmIndex;
+  breath.connect(fmAmount);
+  fmAmount.connect(fmDepth.gain);
+
+  const tremor = ctx.createOscillator();
+  tremor.frequency.value = 6.2 + Math.random() * 1.6;
+  tremor.type = 'sine';
+  const tremorDepth = ctx.createGain();
+  tremorDepth.gain.value = 0;
+  tremor.connect(tremorDepth);
+  tremorDepth.connect(carrier.frequency);
+  const tremorAmount = ctx.createGain();
+  tremorAmount.gain.value = f0 * 0.02;
+  breath.connect(tremorAmount);
+  tremorAmount.connect(tremorDepth.gain);
+
+  const tremorAmp = ctx.createGain();
+  tremorAmp.gain.value = 1;
+  const tremorAmpDepth = ctx.createGain();
+  tremorAmpDepth.gain.value = 0;
+  tremor.connect(tremorAmpDepth);
+  const tremorAmAmount = ctx.createGain();
+  tremorAmAmount.gain.value = 0.06;
+  breath.connect(tremorAmAmount);
+  tremorAmAmount.connect(tremorAmpDepth.gain);
+  tremorAmpDepth.connect(tremorAmp.gain);
+
+  const jitter = ctx.createOscillator();
+  // ROUGH — multi-effect bundle that gives the patch raspy/strained character.
+  // Component 1: micro-jitter (fast pitch perturbation) — now actually audible.
+  // The 35Hz sawtooth on the carrier creates a vocal-fold-like rasp.
+  // Gain scaled to ~12% pitch deviation at rough=1 (was ~1.2%).
+  jitter.frequency.value = 28 + Math.random() * 18;
+  jitter.type = 'sawtooth';
+  const jitterDepth = ctx.createGain();
+  jitterDepth.gain.value = 0;
+  jitter.connect(jitterDepth);
+  jitterDepth.connect(carrier.frequency);
+  // Also route jitter to the modulator so ratio stays coupled — keeps the rasp musical
+  const jitterDepthMod = ctx.createGain();
+  jitterDepthMod.gain.value = 0;
+  jitter.connect(jitterDepthMod);
+  jitterDepthMod.connect(modulator.frequency);
+  const jitterAmount = ctx.createGain();
+  // Quadratic curve so 0-30% knob = subtle, 70-100% = clearly raspy
+  const roughCurve = Math.pow(patch.rough, 1.6);
+  jitterAmount.gain.value = f0 * (0.02 + roughCurve * 0.12);
+  const jitterAmountMod = ctx.createGain();
+  jitterAmountMod.gain.value = f0 * ratio * (0.02 + roughCurve * 0.12);
+  breath.connect(jitterAmount);
+  breath.connect(jitterAmountMod);
+  jitterAmount.connect(jitterDepth.gain);
+  jitterAmountMod.connect(jitterDepthMod.gain);
+
+  // Component 2: slow detuning drift — biological imperfection. The pitch
+  // doesn't sit perfectly still; it wanders ±20 cents at slow rates.
+  // Independent random LFO per voice keeps each hoot a little different.
+  if (patch.rough > 0.08) {
+    const drift = ctx.createOscillator();
+    drift.frequency.value = 0.4 + Math.random() * 0.6;
+    drift.type = 'sine';
+    const driftDepth = ctx.createGain();
+    driftDepth.gain.value = f0 * 0.012 * roughCurve;
+    drift.connect(driftDepth);
+    driftDepth.connect(carrier.frequency);
+    const driftDepthMod = ctx.createGain();
+    driftDepthMod.gain.value = f0 * ratio * 0.012 * roughCurve;
+    drift.connect(driftDepthMod);
+    driftDepthMod.connect(modulator.frequency);
+    drift.start(now);
+    // stopT isn't defined yet at this point in the function; schedule a stop later
+    const driftStopT = now + total + 0.5;
+    drift.stop(driftStopT);
+  }
+
+  // Component 3: tonal grit via a WaveShaper inserted into the carrier path.
+  // At rough=0 the shaper passes audio through cleanly; at rough=1 it adds
+  // light asymmetric distortion that brightens harmonics — adds "bite".
+  let carrierShaper = null;
+  if (patch.rough > 0.05) {
+    carrierShaper = ctx.createWaveShaper();
+    carrierShaper.curve = makeRoughCurve(patch.rough);
+    carrierShaper.oversample = '2x';
+  }
+
+  const amp = ctx.createGain();
+  amp.gain.value = 0;
+  amp.gain.setValueAtTime(0, now);
+  amp.gain.linearRampToValueAtTime(0.55 * patch.effort, now + attack);
+  amp.gain.linearRampToValueAtTime(0.45 * patch.effort, now + attack + sustain);
+  amp.gain.linearRampToValueAtTime(0, now + total);
+
+  const formantShift = 0.55 + (1 - patch.pitch) * 0.7;
+  const formant1 = ctx.createBiquadFilter();
+  formant1.type = 'peaking';
+  formant1.frequency.value = 380 / formantShift;
+  formant1.Q.value = 2.5;
+  formant1.gain.value = 7;
+  const formant2 = ctx.createBiquadFilter();
+  formant2.type = 'peaking';
+  formant2.frequency.value = 900 / formantShift;
+  formant2.Q.value = 2;
+  formant2.gain.value = 4;
+  const lowpass = ctx.createBiquadFilter();
+  lowpass.type = 'lowpass';
+  lowpass.frequency.value = 2200;
+  lowpass.Q.value = 0.7;
+  const lpAmount = ctx.createGain();
+  lpAmount.gain.value = 1800;
+  breath.connect(lpAmount);
+  lpAmount.connect(lowpass.frequency);
+
+  // Wire carrier audio: if rough > 0.05, insert the waveshaper between carrier and amp
+  if (carrierShaper) {
+    carrier.connect(carrierShaper);
+    carrierShaper.connect(amp);
+  } else {
+    carrier.connect(amp);
+  }
+  amp.connect(tremorAmp);
+  tremorAmp.connect(formant1);
+  formant1.connect(formant2);
+  formant2.connect(lowpass);
+  lowpass.connect(masterOut);
+
+  // FRACTAL VOICES — each level spawns a smaller, higher-octave child voice
+  // with its own envelope. Same fade-in windows as the visual fractal so
+  // audio and visuals are tightly coupled.
+  // Each child is a clean sine through a gentle low-pass; no FM, no formant.
+  // This contrasts the main owl's noisy formanted tone with bell-like
+  // overtones nested above it.
+  const fractalVoices = [];
+  const FRACTAL_LEVELS = [
+    { level: 1, octaves: 1, ampScale: 0.42, durScale: 0.70, delay: 0.030 },
+    { level: 2, octaves: 2, ampScale: 0.22, durScale: 0.49, delay: 0.055 },
+    { level: 3, octaves: 3, ampScale: 0.11, durScale: 0.34, delay: 0.072 },
+  ];
+  for (const fl of FRACTAL_LEVELS) {
+    const op = levelOpacity(fl.level, patch.voice);
+    if (op < 0.03) continue;
+    const cf = f0 * Math.pow(2, fl.octaves);
+    if (cf > 6000) continue; // safety: don't shriek
+    const cDur = total * fl.durScale;
+    const cAtt = attack * fl.durScale;
+    const cSus = sustain * fl.durScale;
+    const cStart = now + fl.delay;
+    const cOsc = ctx.createOscillator();
+    cOsc.type = 'sine';
+    cOsc.frequency.value = cf;
+    // Tiny phase-locked tremor on children too (inherited muscle motion)
+    const cTremorDepth = ctx.createGain();
+    cTremorDepth.gain.value = cf * 0.012;
+    tremor.connect(cTremorDepth);
+    cTremorDepth.connect(cOsc.frequency);
+    const cAmp = ctx.createGain();
+    const peak = 0.30 * patch.effort * fl.ampScale * op;
+    cAmp.gain.setValueAtTime(0, cStart);
+    cAmp.gain.linearRampToValueAtTime(peak, cStart + cAtt);
+    cAmp.gain.linearRampToValueAtTime(peak * 0.82, cStart + cAtt + cSus);
+    cAmp.gain.linearRampToValueAtTime(0, cStart + cDur);
+    // Gentle low-pass so each level isn't piercing
+    const cLp = ctx.createBiquadFilter();
+    cLp.type = 'lowpass';
+    cLp.frequency.value = Math.min(7000, cf * 4);
+    cLp.Q.value = 0.5;
+    cOsc.connect(cAmp);
+    cAmp.connect(cLp);
+    cLp.connect(masterOut);
+    cOsc.start(cStart);
+    cOsc.stop(cStart + cDur + 0.05);
+    fractalVoices.push(cOsc);
+  }
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = getNoiseBuffer(total + 0.3);
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.value = 1200 + f0 * 1.5;
+  noiseFilter.Q.value = 0.55;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.value = 0;
+  const noiseAmount = ctx.createGain();
+  // Dedicated BREATH parameter — controls the breath turbulence directly.
+  // 0 = clean tone, no air. 1 = prominent but never dominant.
+  // Breath knob curve: quadratic so the audible work happens across most of
+  // the knob travel instead of clipping to "audible" in the first 2%.
+  // Also lower peak gain so even 100% breath sits in the mix rather than dominating.
+  const breathK = patch.breath || 0;
+  const breathGain = Math.pow(breathK, 2.2) * 0.07;
+  noiseAmount.gain.value = breathGain;
+  breath.connect(noiseAmount);
+  noiseAmount.connect(noiseGain.gain);
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(formant1);
+
+  carrier.start(now);
+  modulator.start(now);
+  tremor.start(now);
+  jitter.start(now);
+  noise.start(now);
+
+  const stopT = now + total + 0.15;
+  carrier.stop(stopT);
+  modulator.stop(stopT);
+  tremor.stop(stopT);
+  jitter.stop(stopT);
+  noise.stop(stopT);
+  breath.stop(stopT);
+
+  const voiceObj = {
+    startTime: now,
+    attack, sustain, release, total,
+    effort: patch.effort,
+    targetHz: f0,
+    breathAt(t) {
+      const dt = t - now;
+      if (dt < 0 || dt > total) return 0;
+      if (dt < attack) return (dt / attack) * patch.effort;
+      if (dt < attack + sustain) {
+        const u = (dt - attack) / sustain;
+        return patch.effort * (1 - u * 0.18);
+      }
+      const u = (dt - attack - sustain) / release;
+      return patch.effort * 0.82 * (1 - u);
+    },
+    /* Hard cut — used in mono mode for snappy retrigger */
+    stop() {
+      try { carrier.stop(); modulator.stop(); tremor.stop(); jitter.stop(); noise.stop(); breath.stop(); } catch(e){}
+      fractalVoices.forEach(n => { try{ n.stop(); }catch(e){} });
+      activeVoices.delete(voiceObj);
+    },
+    /* Soft release — ramps amp envelope to 0 over the release time, then stops */
+    softRelease() {
+      const t = audioCtx.currentTime;
+      const fadeT = Math.min(0.12, release * 0.4);
+      try {
+        amp.gain.cancelScheduledValues(t);
+        amp.gain.setValueAtTime(amp.gain.value, t);
+        amp.gain.linearRampToValueAtTime(0, t + fadeT);
+        breath.offset.cancelScheduledValues(t);
+        breath.offset.setValueAtTime(breath.offset.value, t);
+        breath.offset.linearRampToValueAtTime(0, t + fadeT);
+      } catch (e) {}
+      // schedule a hard stop after fade
+      setTimeout(() => this.stop(), (fadeT + 0.05) * 1000);
+    }
+  };
+  activeVoices.add(voiceObj);
+  setTimeout(() => activeVoices.delete(voiceObj), (total + 0.3) * 1000);
+  return voiceObj;
+}
+
+function stopAll() {
+  activeVoices.forEach(v => v.stop());
+  activeVoices.clear();
+}
+
+/* ---------- VISUAL MAPPING TABLE ----------
+   Every visual axis reads from this object. Editable at runtime via the
+   MAPPING tab — no code changes needed to retry a different routing.
+   visualAxis : { param: 'pitch'|..., invert: bool, min: number, max: number }
+*/
+const VISUAL_AXES = {
+  size:        { param: 'length', invert: false, min: 0.30, max: 1.00, label: 'SIZE' },
+  chonk:       { param: 'pitch',  invert: true,  min: 0.55, max: 1.45, label: 'CHONK' },
+  colorHue:    { param: 'ratio',  invert: false, min: 0.00, max: 1.00, label: 'HUE' },
+  colorSat:    { param: 'ratio',  invert: false, min: 0.00, max: 1.00, label: 'SAT' },
+  outline:     { param: 'effort', invert: false, min: 0.30, max: 1.00, label: 'OUTLINE' },
+  glow:        { param: 'effort', invert: false, min: 0.10, max: 1.00, label: 'EYE GLOW' },
+  sides:       { param: 'rough',  invert: false, min: 3,    max: 20,   label: 'SIDES' },
+  particles:   { param: 'breath', invert: false, min: 0.00, max: 1.00, label: 'PARTICLES' },
+  voiceHeads:  { param: 'voice',  invert: false, min: 0.00, max: 1.00, label: 'EXTRA HEADS' },
+  // Aberration scaling — driven by the source param's inharmonicity (distance
+  // from nearest integer of fmRatio). 0 = no fringe; 1 = max RGB split. The
+  // table param chooses which knob's inharmonicity drives it (default: ratio).
+  aberration:  { param: 'ratio',  invert: false, min: 0.00, max: 1.00, label: 'ABERRATION' },
+};
+
+function readAxis(axisKey, patch) {
+  const a = VISUAL_AXES[axisKey];
+  let v = patch[a.param];
+  if (v == null) v = 0;
+  if (a.invert) v = 1 - v;
+  return a.min + (a.max - a.min) * v;
+}
+
+/* ---------- COLOR: ratio → hue band + saturation strength ----------
+   RATIO bands (chosen by where the math lives):
+     SUB        0.10 – 0.95   ratio below 1 → deep red / crimson
+     HARMONIC   0.95 – 4.10   roughly integer ratios → warm amber/gold
+     INHARMONIC 4.10 – 8.00   high inharmonic territory → cool indigo/violet
+   Saturation = how STRONG the band membership is.
+     Sub: more saturated as ratio → 0.10
+     Harmonic: more saturated when very close to an integer
+     Inharmonic: more saturated as ratio → 8.00
+*/
+function ratioColor(ratioKnob) {
+  const r = fmRatio(ratioKnob); // 0.10..8.00
+  const bands = getTheme().ratioBands;
+  let hue, satBand;
+  if (r < 0.95) {
+    hue = bands.sub.hue;
+    satBand = (0.95 - r) / 0.85; // → 1 at r=0.10
+  } else if (r < 4.10) {
+    hue = bands.harmonic.hue;
+    // closeness to nearest integer drives saturation; clean ratios = vivid
+    const near = Math.abs(r - Math.round(r));
+    satBand = 1 - Math.min(1, near / 0.5);
+  } else {
+    hue = bands.inharmonic.hue;
+    satBand = (r - 4.10) / 3.90; // → 1 at r=8.00
+  }
+  return { hue, sat: Math.max(0.15, satBand) };
+}
+
+/* ---------- COLOR RESOLUTION ---------- */
+function colorsFor(patch) {
+  const { hue, sat } = ratioColor(patch.ratio);
+  const satMul = readAxis('colorSat', patch);
+  const finalSat = Math.max(0, Math.min(1, sat * satMul));
+  const th = getTheme();
+
+  const bL = th.bodyLightness;
+  const hL = th.headLightness;
+  const bS = th.bodySaturation.mult;
+  const hS = th.headSaturation.mult;
+
+  const body = `hsl(${hue}, ${Math.round(finalSat * bS)}%, ${Math.round(bL.base + finalSat * bL.range)}%)`;
+  const head = `hsl(${hue}, ${Math.round(finalSat * hS)}%, ${Math.round(hL.base + finalSat * hL.range)}%)`;
+  const eye  = `hsl(${(hue + 180) % 360}, ${Math.round(60 + finalSat * 30)}%, 60%)`;
+  return { body, head, eye, hue, sat: finalSat };
+}
+
+/* ---------- VOICE: fractal nesting (cap at low values, multiplied heads on body) ----------
+   You asked for "heads popping out" — so at high voice we also add EXTRA HEADS
+   onto the parent body itself (not just smaller perched children).
+   Levels still fade smoothly so increasing voice grows the owl.
+*/
+function levelOpacity(level, voice) {
+  if (level === 0) return 1;
+  const start = (level - 1) * 0.30;
+  const end = start + 0.30;
+  if (voice <= start) return 0;
+  if (voice >= end) return 1;
+  return (voice - start) / 0.30;
+}
+function extraHeadCount(voiceAxisVal) {
+  // 0..1 → 0..6 extra heads
+  return Math.round(voiceAxisVal * 6);
+}
+
+/* ---------- FORM: polygonal owl ----------
+   Body & head are regular polygons (side count = ROUGH axis).
+   If sides >= 18 they read as circles.
+*/
+function drawOwl(canvas, patch, breathVal = 0, t = 0) {
+  const ctx2d = canvas.getContext('2d');
+  const w = canvas._cssW || canvas.width;
+  const h = canvas._cssH || canvas.height;
+  ctx2d.clearRect(0, 0, w, h);
+
+  const cx = w / 2;
+  const cy = h / 2 + h * 0.04;
+
+  // SIZE → length (default). CHONK → pitch (default).
+  const sizeFactor = readAxis('size', patch);
+  const baseR = Math.min(w, h) * 0.40 * sizeFactor;
+
+  const maxLevel = canvas._maxFractalLevel ?? 3;
+  drawOwlAt(ctx2d, patch, breathVal, t, cx, cy, baseR, 0, maxLevel);
+
+  // BREATH particles (and now also driven by mapping's 'particles' axis)
+  const particlesAxis = readAxis('particles', patch);
+  if (breathVal > 0.05 && particlesAxis > 0.05) {
+    const chonk = readAxis('chonk', patch);
+    const bodyW = baseR * chonk;
+    const bodyH = baseR / chonk;
+    const count = Math.floor(breathVal * particlesAxis * 22);
+    ctx2d.fillStyle = `rgba(${getTheme().owl.particleHueRgba},${0.35 * breathVal})`;
+    for (let i = 0; i < count; i++) {
+      const ang = (i / count) * Math.PI * 2 + t / 200;
+      const dist = bodyW + 6 + Math.sin(t / 90 + i) * 8;
+      const px = cx + Math.cos(ang) * dist;
+      const py = cy - bodyH * 0.4 + Math.sin(ang) * dist * 0.4;
+      const r = 1 + Math.random() * 1.8;
+      ctx2d.beginPath();
+      ctx2d.arc(px, py, r, 0, Math.PI * 2);
+      ctx2d.fill();
+    }
+  }
+}
+
+/* Inharmonicity of a ratio knob — 0 when sitting on an integer (1.0, 2.0, ...),
+   1 when maximally far from any integer (e.g. ratio = 0.5, 1.5, 2.5...).
+   Below 1.0 we still compute distance from nearest integer; above 4.10 we
+   treat as "max inharmonic" since the harmonic band ends there. */
+function inharmonicAmount(ratioKnob) {
+  const r = fmRatio(ratioKnob);
+  if (r >= 4.10) return 1; // deep inharmonic territory always renders aberrated
+  if (r < 0.95) {
+    // sub-harmonic — distance from integer 1 (1.0 down to 0.10 is increasingly off)
+    return Math.min(1, (1.0 - r) / 0.9);
+  }
+  const near = Math.abs(r - Math.round(r));
+  return Math.min(1, near / 0.5);
+}
+
+function drawOwlAt(ctx2d, patch, breathVal, t, x, y, r, level, maxLevel) {
+  const voiceAxis = readAxis('voiceHeads', patch);
+  const op = levelOpacity(level, voiceAxis);
+  if (op < 0.02) return;
+
+  ctx2d.save();
+  ctx2d.globalAlpha = ctx2d.globalAlpha * op;
+  ctx2d.translate(x, y);
+
+  if (level === 0) {
+    const breathScale = 1 + breathVal * 0.07;
+    const roughForTilt = patch.rough;
+    const stanceTilt = (roughForTilt - 0.5) * 0.10 + Math.sin(t / 380) * roughForTilt * 0.04;
+    const sway = breathVal > 0.01 ? Math.sin(t * 2 * Math.PI * 6.8) * 1.6 * breathVal : 0;
+    const microJitter = breathVal > 0.01 ? (Math.sin(t * 2 * Math.PI * 34) * 0.5) * breathVal * roughForTilt : 0;
+    ctx2d.translate(sway + microJitter, 0);
+    ctx2d.rotate(stanceTilt);
+    ctx2d.scale(breathScale, breathScale);
+  }
+
+  // CHONK: width/height stretch (low pitch = chonky round, high pitch = lean)
+  const chonk = readAxis('chonk', patch);
+  const bodyW = r * chonk;
+  const bodyH = r / chonk;
+
+  // Aura — top level only
+  if (level === 0 && breathVal > 0.02) {
+    const auraR = (bodyH + bodyW) * 0.5 * (1 + breathVal * 0.6);
+    const grad = ctx2d.createRadialGradient(0, 0, r * 0.3, 0, 0, auraR);
+    const auraRgb = getTheme().owl.auraHueRgb;
+    grad.addColorStop(0, `rgba(${auraRgb},${0.30 * breathVal})`);
+    grad.addColorStop(1, `rgba(${auraRgb},0)`);
+    ctx2d.fillStyle = grad;
+    ctx2d.beginPath();
+    ctx2d.arc(0, 0, auraR, 0, Math.PI * 2);
+    ctx2d.fill();
+  }
+
+  const colors = colorsFor(patch);
+  const sides = Math.max(3, Math.round(readAxis('sides', patch)));
+  const outlineW = readAxis('outline', patch);
+
+  // CHROMATIC ABERRATION on inharmonic ratios.
+  // Clean integer ratios → silhouette is crisp.
+  // Drifting between integers → the silhouette splits into RGB-offset ghosts.
+  // The aberration axis's mapped param drives "how inharmonic" via the
+  // inharmonicAmount() function. Multiplied by the axis's own scaling knob
+  // (defaults to ratio amount, but user can crank or kill via MAPPING tab).
+  const abAxisParam = VISUAL_AXES.aberration.param;
+  const abAxisVal = readAxis('aberration', patch);  // 0..1 user scaling
+  const abInharm = inharmonicAmount(patch[abAxisParam] ?? patch.ratio);
+  const aberrationAmt = abInharm * abAxisVal;
+
+  // Body polygon
+  ctx2d.lineWidth = Math.max(1.2, r * 0.06 * outlineW);
+  ctx2d.strokeStyle = getTheme().owl.outline;
+
+  if (aberrationAmt > 0.02) {
+    // Draw three RGB-channel "ghosts" of the body offset in different directions.
+    // Use additive-feel blending so they layer cleanly without obscuring the
+    // base fill. Offsets scale with body size so it reads at any zoom.
+    const off = aberrationAmt * r * 0.10;
+    const prevComp = ctx2d.globalCompositeOperation;
+    const prevAlpha = ctx2d.globalAlpha;
+    ctx2d.globalCompositeOperation = 'lighter';
+    // Red ghost — offset up-left
+    ctx2d.globalAlpha = 0.55;
+    ctx2d.fillStyle = `rgba(255, 40, 40, 1)`;
+    ctx2d.save();
+    ctx2d.translate(-off * 0.7, -off * 0.3);
+    drawPolygonBody(ctx2d, bodyW, bodyH, sides);
+    ctx2d.restore();
+    // Green ghost — offset down
+    ctx2d.fillStyle = `rgba(40, 220, 80, 1)`;
+    ctx2d.save();
+    ctx2d.translate(0, off * 0.7);
+    drawPolygonBody(ctx2d, bodyW, bodyH, sides);
+    ctx2d.restore();
+    // Blue ghost — offset up-right
+    ctx2d.fillStyle = `rgba(60, 110, 255, 1)`;
+    ctx2d.save();
+    ctx2d.translate(off * 0.7, -off * 0.3);
+    drawPolygonBody(ctx2d, bodyW, bodyH, sides);
+    ctx2d.restore();
+    ctx2d.globalCompositeOperation = prevComp;
+    ctx2d.globalAlpha = prevAlpha;
+  }
+
+  // Main body fill on top of (any) ghosts
+  ctx2d.fillStyle = colors.body;
+  drawPolygonBody(ctx2d, bodyW, bodyH, sides);
+
+  // HEAD COUNT — base 1 + extra heads from voice axis
+  const extras = level === 0 ? extraHeadCount(voiceAxis) : 0;
+  const headR = r * 0.42 * Math.pow(chonk, -0.10);
+  const headYBase = -bodyH * 0.78;
+  const totalHeads = 1 + extras;
+  if (totalHeads === 1) {
+    drawHead(ctx2d, 0, headYBase, headR, patch, breathVal, t, colors, sides);
+  } else {
+    // arrange heads in a fan across the top of the body
+    const spreadW = bodyW * 1.20;
+    for (let i = 0; i < totalHeads; i++) {
+      const u = totalHeads === 1 ? 0.5 : i / (totalHeads - 1);
+      const hx = -spreadW / 2 + u * spreadW;
+      // small arc — outer heads sit slightly lower
+      const arcDip = Math.abs(u - 0.5) * 2;
+      const hy = headYBase + arcDip * headR * 0.5;
+      const hr = headR * (0.78 + 0.22 * (1 - arcDip));
+      drawHead(ctx2d, hx, hy, hr, patch, breathVal, t, colors, sides);
+    }
+  }
+
+  // Recurse children — perched on shoulders
+  if (level < maxLevel) {
+    const childR = r * 0.40;
+    const sx = bodyW * 0.95;
+    const sy = -bodyH * 0.20;
+    drawOwlAt(ctx2d, patch, breathVal, t, -sx, sy, childR, level + 1, maxLevel);
+    drawOwlAt(ctx2d, patch, breathVal, t, +sx, sy, childR, level + 1, maxLevel);
+  }
+
+  ctx2d.restore();
+}
+
+/* Regular-N polygon, stretched to bodyW × bodyH, oriented point-up.
+   Top vertex aligned to -bodyH so the head sits cleanly above. */
+function drawPolygonBody(ctx2d, bw, bh, sides) {
+  ctx2d.beginPath();
+  for (let i = 0; i < sides; i++) {
+    const a = -Math.PI / 2 + (i / sides) * Math.PI * 2;
+    const x = Math.cos(a) * bw;
+    const y = Math.sin(a) * bh;
+    if (i === 0) ctx2d.moveTo(x, y);
+    else ctx2d.lineTo(x, y);
+  }
+  ctx2d.closePath();
+  ctx2d.fill();
+  ctx2d.stroke();
+}
+
+/* Polygonal head with ear tufts (length-tied — but length now drives SIZE,
+   so we tie ear height to a small intrinsic constant + voice for variety) */
+function drawHead(ctx2d, x, y, r, patch, breathVal, t, colors, sides) {
+  ctx2d.save();
+  ctx2d.translate(x, y);
+
+  // Ear tufts — small fixed-ish so they don't fight the SIZE mapping
+  const earH = r * 0.55;
+  drawEarTuft(ctx2d, -r * 0.55, -r * 0.55, -r * 0.20, earH, colors.body);
+  drawEarTuft(ctx2d, +r * 0.55, -r * 0.55, +r * 0.20, earH, colors.body);
+
+  // Head polygon (same sides as body so the language is consistent)
+  ctx2d.lineWidth = Math.max(1.2, r * 0.10 * readAxis('outline', patch));
+  ctx2d.strokeStyle = getTheme().owl.outline;
+  ctx2d.fillStyle = colors.head;
+  drawPolygonBody(ctx2d, r, r, sides);
+
+  // Eyes
+  const eyeR = r * 0.32;
+  const eyeSep = r * 0.44;
+  const eyeY = -r * 0.05;
+  const glowAxis = readAxis('glow', patch);
+  drawEye(ctx2d, -eyeSep, eyeY, eyeR, glowAxis, breathVal, t, colors.eye);
+  drawEye(ctx2d, +eyeSep, eyeY, eyeR, glowAxis, breathVal, t, colors.eye);
+
+  // Beak — triangle
+  const th = getTheme();
+  ctx2d.fillStyle = th.owl.beakFill;
+  ctx2d.strokeStyle = th.owl.beakStroke;
+  ctx2d.lineWidth = Math.max(0.8, r * 0.04);
+  ctx2d.beginPath();
+  ctx2d.moveTo(-r * 0.11, r * 0.32);
+  ctx2d.lineTo(+r * 0.11, r * 0.32);
+  ctx2d.lineTo(0, r * 0.58);
+  ctx2d.closePath();
+  ctx2d.fill();
+  ctx2d.stroke();
+
+  ctx2d.restore();
+}
+
+function drawEarTuft(ctx2d, baseX, baseY, tipOffsetX, height, color) {
+  ctx2d.save();
+  ctx2d.fillStyle = color;
+  ctx2d.strokeStyle = getTheme().owl.outline;
+  ctx2d.lineWidth = Math.max(1.0, height * 0.06);
+  ctx2d.lineJoin = 'round';
+  ctx2d.beginPath();
+  const halfBase = Math.max(2, height * 0.18);
+  ctx2d.moveTo(baseX - halfBase, baseY);
+  ctx2d.lineTo(baseX + halfBase, baseY);
+  ctx2d.lineTo(baseX + tipOffsetX, baseY - height);
+  ctx2d.closePath();
+  ctx2d.fill();
+  ctx2d.stroke();
+  ctx2d.restore();
+}
+
+function drawEye(ctx2d, x, y, r, glowVal, breathVal, t, eyeColor) {
+  const glow = Math.min(1, glowVal * 0.7 + breathVal * 0.30);
+  ctx2d.fillStyle = eyeColor;
+  ctx2d.globalAlpha = 0.5 + glow * 0.5;
+  ctx2d.strokeStyle = getTheme().owl.outline;
+  ctx2d.lineWidth = Math.max(1.5, r * 0.16);
+  ctx2d.beginPath();
+  ctx2d.arc(x, y, r, 0, Math.PI * 2);
+  ctx2d.fill();
+  ctx2d.stroke();
+  ctx2d.globalAlpha = 1;
+
+  const jx = breathVal > 0.01 ? Math.sin(t * 2 * Math.PI * 34) * r * 0.06 : 0;
+  ctx2d.fillStyle = getTheme().owl.outline;
+  ctx2d.beginPath();
+  ctx2d.arc(x + jx, y, r * 0.42, 0, Math.PI * 2);
+  ctx2d.fill();
+}
+
+/* ---------- ROTARY KNOB ---------- */
+class RotaryKnob {
+  constructor(canvas, value, onChange, opts = {}) {
+    this.canvas = canvas;
+    this.value = value;
+    this.onChange = onChange;
+    this.featured = opts.featured || false;
+    this.slate = opts.slate || false;
+    this.dragging = false;
+    this.dragStartY = 0;
+    this.dragStartVal = 0;
+    this.fixDPR();
+    this.bind();
+    this.draw();
+  }
+  fixDPR() {
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    this.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    this.canvas._cssW = rect.width;
+    this.canvas._cssH = rect.height;
+    this.canvas.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  setValue(v) {
+    this.value = Math.max(0, Math.min(1, v));
+    this.draw();
+  }
+  bind() {
+    const startDrag = (clientY) => {
+      this.dragging = true;
+      this.dragStartY = clientY;
+      this.dragStartVal = this.value;
+    };
+    const moveDrag = (clientY) => {
+      if (!this.dragging) return;
+      const dy = this.dragStartY - clientY;
+      const delta = dy / 200;
+      this.setValue(this.dragStartVal + delta);
+      if (this.onChange) this.onChange(this.value);
+    };
+    const endDrag = () => { this.dragging = false; };
+
+    this.canvas.addEventListener('mousedown', (e) => { startDrag(e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', (e) => moveDrag(e.clientY));
+    window.addEventListener('mouseup', endDrag);
+
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length) { startDrag(e.touches[0].clientY); e.preventDefault(); }
+    }, { passive: false });
+    window.addEventListener('touchmove', (e) => {
+      if (this.dragging && e.touches.length) { moveDrag(e.touches[0].clientY); e.preventDefault(); }
+    }, { passive: false });
+    window.addEventListener('touchend', endDrag);
+  }
+  draw() {
+    const ctx = this.canvas.getContext('2d');
+    const w = this.canvas._cssW;
+    const h = this.canvas._cssH;
+    const cx = w / 2;
+    const cy = h / 2;
+    const R = Math.min(w, h) * 0.42;
+    ctx.clearRect(0, 0, w, h);
+    const startAng = Math.PI * 0.75;
+    const endAng = Math.PI * 2.25;
+    const sweep = endAng - startAng;
+    const curAng = startAng + sweep * this.value;
+    ctx.strokeStyle = '#1a1c24';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAng, endAng);
+    ctx.stroke();
+    const arcColor = this.slate ? '#5a7a9e' : (this.featured ? '#f4a942' : '#b25a2a');
+    const shadowColor = this.slate ? 'rgba(90,122,158,0.4)' : (this.featured ? 'rgba(244,169,66,0.6)' : 'transparent');
+    const indicatorColor = this.slate ? '#7a9ab8' : (this.featured ? '#f4a942' : '#d4c5a0');
+    const dotColor = this.slate ? '#5a7a9e' : (this.featured ? '#f4a942' : '#6b6049');
+
+    ctx.strokeStyle = arcColor;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = (this.featured || this.slate) ? 6 : 0;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAng, curAng);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    const bodyR = R - 6;
+    const grad = ctx.createRadialGradient(cx - bodyR * 0.3, cy - bodyR * 0.4, 2, cx, cy, bodyR);
+    grad.addColorStop(0, '#2a2620');
+    grad.addColorStop(1, '#0e0c08');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, bodyR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#3a342a';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    const ix1 = cx + Math.cos(curAng) * bodyR * 0.3;
+    const iy1 = cy + Math.sin(curAng) * bodyR * 0.3;
+    const ix2 = cx + Math.cos(curAng) * bodyR * 0.85;
+    const iy2 = cy + Math.sin(curAng) * bodyR * 0.85;
+    ctx.strokeStyle = indicatorColor;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ix1, iy1);
+    ctx.lineTo(ix2, iy2);
+    ctx.stroke();
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/* ---------- PARLIAMENT: 7-owl hex play-field ---------- */
+const SLOT_COUNT = 7;
+
+// Hex positions: center + 6 around (clockwise from top)
+// Index 0 = center (root). Indices 1..6 = ring, clockwise from top.
+const HEX_POSITIONS = [
+  { left: '50%', top: '50%' },  // 0 center  — root
+  { left: '50%', top: '13%' },  // 1 top     — 2nd
+  { left: '83%', top: '32%' },  // 2 t-right — 3rd
+  { left: '83%', top: '68%' },  // 3 b-right — 4th
+  { left: '50%', top: '87%' },  // 4 bottom  — 5th
+  { left: '17%', top: '68%' },  // 5 b-left  — 6th
+  { left: '17%', top: '32%' },  // 6 t-left  — 7th (major)
+];
+
+// SVG coords matching the CSS positions, for spell-trace rendering.
+const HEX_SVG_COORDS = [
+  { x: 50, y: 50 }, // 0 center
+  { x: 50, y: 13 }, // 1 top
+  { x: 83, y: 32 }, // 2 t-right
+  { x: 83, y: 68 }, // 3 b-right
+  { x: 50, y: 87 }, // 4 bottom
+  { x: 17, y: 68 }, // 5 b-left
+  { x: 17, y: 32 }, // 6 t-left
+];
+
+// Major scale intervals (semitones) for the 7 positions
+const SCALE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+
+// Starter patch — all 7 owls start IDENTICAL. They're not distinct
+// creatures; they're identical preset slots. The character is whatever
+// you dial into the selected slot. Cast spreads it across the hex.
+const STARTER_PATCH = {
+  pitch:  0.32,   // ~44Hz — a juicy low starting point
+  ratio:  0.28,
+  effort: 0.70,
+  length: 0.55,
+  rough:  0.25,
+  voice:  0.00,   // fractal off by default; user dials it in
+  breath: 0.15,   // subtle by default; was previously baked in too hot
+};
+
+const slots = [];
+for (let i = 0; i < SLOT_COUNT; i++) {
+  slots.push({
+    idx: i,
+    patch: { ...STARTER_PATCH },
+    el: null,
+    canvas: null,
+    pitchTag: null,
+    voiceObj: null,
+  });
+}
+
+let selectedIdx = 0;
+let bigCanvas = null;
+const knobObjs = {};
+
+const MACRO_DEFS = [
+  { key: 'pitch',  label: 'PITCH',  featured: true  },
+  { key: 'ratio',  label: 'RATIO',  featured: true  },
+  { key: 'breath', label: 'BREATH', featured: true  },
+  { key: 'effort', label: 'EFFORT', featured: false },
+  { key: 'length', label: 'LENGTH', featured: false },
+  { key: 'rough',  label: 'ROUGH',  featured: false },
+  { key: 'voice',  label: 'VOICE',  featured: false },
+];
+
+function fmtVal(name, k) {
+  if (name === 'pitch') {
+    const hz = pitchHz(k);
+    return hz < 100 ? hz.toFixed(1) + 'Hz' : Math.round(hz) + 'Hz';
+  }
+  if (name === 'ratio') return fmRatio(k).toFixed(2);
+  return Math.round(k * 100) + '%';
+}
+
+function buildKnobs() {
+  const wrap = document.getElementById('knobs');
+  wrap.innerHTML = '';
+  MACRO_DEFS.forEach(def => {
+    const cell = document.createElement('div');
+    cell.className = 'knob' + (def.featured ? ' featured' : '');
+    cell.setAttribute('data-key', def.key);
+    cell.innerHTML = `
+      <div class="knob-lbl">${def.label}</div>
+      <canvas class="knob-canvas"></canvas>
+      <div class="knob-val" id="kv-${def.key}">––</div>
+    `;
+    wrap.appendChild(cell);
+    const cv = cell.querySelector('canvas');
+    const kv = cell.querySelector('.knob-val');
+    const k = new RotaryKnob(cv, slots[selectedIdx].patch[def.key], (v) => {
+      slots[selectedIdx].patch[def.key] = v;
+      kv.textContent = fmtVal(def.key, v);
+      if (def.key === 'pitch') {
+        updateBigPitch();
+        updateSlotPitchTag(selectedIdx);
+      }
+    }, { featured: def.featured });
+    knobObjs[def.key] = k;
+    kv.textContent = fmtVal(def.key, k.value);
+  });
+
+  // GLOBAL OUT volume — not per-slot. Lives in same panel for layout consistency
+  // but visually distinct (slate accent, ◇ marker) so it's clearly a different
+  // category.
+  const outCell = document.createElement('div');
+  outCell.className = 'knob global';
+  outCell.setAttribute('data-key', 'out');
+  outCell.innerHTML = `
+    <div class="knob-lbl">OUT</div>
+    <canvas class="knob-canvas"></canvas>
+    <div class="knob-val" id="kv-out">––</div>
+  `;
+  wrap.appendChild(outCell);
+  const outCv = outCell.querySelector('canvas');
+  const outKv = outCell.querySelector('.knob-val');
+  const outK = new RotaryKnob(outCv, masterVolPct / 100, (v) => {
+    masterVolPct = Math.round(v * 100);
+    outKv.textContent = masterVolPct + '%';
+    if (masterOut) {
+      masterOut.gain.value = Math.pow(masterVolPct / 100, 2) * 1.2;
+    }
+  }, { featured: false, slate: true });
+  knobObjs.out = outK;
+  outKv.textContent = masterVolPct + '%';
+}
+
+/* ---------- HOLD-CHARGE-FLING GESTURE ----------
+   Gesture vocabulary:
+     - Quick tap (< 130ms, no movement): plays owl normally
+     - Press and hold: charge builds (envelope attack rises and HOLDS at peak
+       — the breath stays full instead of decaying through sustain)
+     - Release in place: enters envelope release naturally → drone-fade
+     - Release over a different owl (fling): the charged source impacts the
+       destination, casting source character at destination pitch, with
+       intensity proportional to fling speed
+   Charge time = envelope attack time (driven by LENGTH).
+*/
+const TAP_THRESHOLD_MS = 130;
+const TAP_MOVE_THRESHOLD_PX = 8;
+const heldVoices = new Map(); // slotIdx → { voiceObj, startTime, intervalId }
+
+function attachHexGesture(cell, slotIdx) {
+  let pointerStart = null; // { x, y, t }
+  let lastMove = null;     // { x, y, t } most recent move event
+  let prevMove = null;     // { x, y, t } the one before that — for velocity
+  let pointerId = null;
+  let isHolding = false;
+
+  const getPos = (e) => {
+    if (e.touches && e.touches.length) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: e.clientX, y: e.clientY };
+  };
+
+  const onDown = (e) => {
+    // Only handle the primary pointer (left mouse, single touch). Ignore
+    // secondary buttons and additional fingers.
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    ensureAudio();
+    const pos = getPos(e);
+    const t = performance.now();
+    pointerStart = { ...pos, t };
+    lastMove = { ...pos, t };
+    prevMove = { ...pos, t };
+    isHolding = false;
+    pointerId = e.pointerId;
+    // Capture the pointer to this cell so we keep getting moves/up even when
+    // the finger slides off the cell. This is what makes fling work — the
+    // gesture started here owns the entire drag, not whichever element the
+    // finger happens to be over at any moment.
+    try { cell.setPointerCapture(e.pointerId); } catch (err) {}
+    selectSlot(slotIdx);
+    setTimeout(() => {
+      if (pointerStart) {
+        isHolding = true;
+        startHeldVoice(slotIdx);
+      }
+    }, TAP_THRESHOLD_MS);
+  };
+
+  const onMove = (e) => {
+    if (!pointerStart) return;
+    if (pointerId != null && e.pointerId !== undefined && e.pointerId !== pointerId) return;
+    const pos = getPos(e);
+    prevMove = lastMove;
+    lastMove = { ...pos, t: performance.now() };
+  };
+
+  const onUp = (e) => {
+    if (!pointerStart) return;
+    if (pointerId != null && e.pointerId !== undefined && e.pointerId !== pointerId) return;
+    const elapsed = performance.now() - pointerStart.t;
+    const dx = lastMove.x - pointerStart.x;
+    const dy = lastMove.y - pointerStart.y;
+    const moved = Math.hypot(dx, dy);
+
+    if (elapsed < TAP_THRESHOLD_MS && moved < TAP_MOVE_THRESHOLD_PX) {
+      triggerSlot(slotIdx);
+    } else if (isHolding) {
+      const flingTarget = findHexCellUnder(lastMove.x, lastMove.y);
+      const velocity = computeFlingVelocity(prevMove, lastMove);
+      if (flingTarget !== null && flingTarget !== slotIdx && velocity > 0.4) {
+        finishHeldVoice(slotIdx);
+        flingFromTo(slotIdx, flingTarget, velocity);
+      } else {
+        finishHeldVoice(slotIdx);
+      }
+    }
+    try { if (pointerId != null) cell.releasePointerCapture(pointerId); } catch (err) {}
+    pointerStart = null;
+    lastMove = null;
+    prevMove = null;
+    isHolding = false;
+    pointerId = null;
+  };
+
+  cell.addEventListener('pointerdown', onDown);
+  cell.addEventListener('pointermove', onMove);
+  cell.addEventListener('pointerup', onUp);
+  cell.addEventListener('pointercancel', onUp);
+}
+
+/* Start a held voice on slot i.
+   We call hoot() and use its softRelease method later. The breath envelope
+   currently has a fixed shape (attack/sustain/release). For the held mode,
+   we want it to PAUSE at the peak rather than continue through sustain
+   decay. Easiest approach: schedule the envelope normally, and when the user
+   releases, we cut to "release phase" by calling softRelease — which already
+   ramps amp/breath to zero. The "hold" portion is approximated by the long
+   sustain plateau the envelope already has at high length values.
+   For now this is the simplest correct hold: while pressed, the envelope
+   plays normally; on release we softRelease, which cuts off whatever was
+   ringing. Visually we mark the slot as "held" so it pulses brighter.
+*/
+function startHeldVoice(slotIdx) {
+  const s = slots[slotIdx];
+  if (s.voiceObj) s.voiceObj.stop();
+  s.voiceObj = hoot(s.patch);
+  heldVoices.set(slotIdx, { voiceObj: s.voiceObj, startTime: performance.now() });
+  s.el.classList.add('charging');
+  addSpellTrace(slotIdx);
+}
+
+function finishHeldVoice(slotIdx) {
+  const h = heldVoices.get(slotIdx);
+  if (!h) return;
+  const s = slots[slotIdx];
+  s.el.classList.remove('charging');
+  // If this voice is still the current voice on this slot, softRelease it
+  if (s.voiceObj === h.voiceObj) {
+    h.voiceObj.softRelease();
+  }
+  heldVoices.delete(slotIdx);
+}
+
+/* Find which hex cell (if any) a screen point is over. Returns slotIdx or null. */
+function findHexCellUnder(x, y) {
+  for (let i = 0; i < slots.length; i++) {
+    const cell = slots[i].el;
+    if (!cell) continue;
+    const r = cell.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
+  }
+  return null;
+}
+
+/* Compute fling velocity in normalized units. 0 = no motion, 1+ = vigorous. */
+function computeFlingVelocity(prev, last) {
+  if (!prev || !last) return 0;
+  const dt = Math.max(1, last.t - prev.t);
+  const dx = last.x - prev.x;
+  const dy = last.y - prev.y;
+  const dist = Math.hypot(dx, dy);
+  const pxPerMs = dist / dt; // typical fling: 1-4 px/ms
+  return Math.min(2.5, pxPerMs / 1.5); // normalize so 1.5 px/ms = velocity 1.0
+}
+
+/* Fling: source's character impacts destination's pitch with intensity. */
+function flingFromTo(srcIdx, dstIdx, velocity) {
+  const src = slots[srcIdx].patch;
+  const dst = slots[dstIdx].patch;
+  // Build the impact patch: source's character (ratio/effort/length/rough/voice/breath)
+  // but destination's pitch. Velocity boosts effort temporarily.
+  const intensity = Math.min(1, velocity / 1.5); // 0..1
+  const impactPatch = {
+    pitch:  dst.pitch,
+    ratio:  src.ratio,
+    effort: Math.min(1, src.effort + intensity * 0.20),
+    length: src.length,
+    rough:  src.rough,
+    voice:  src.voice,
+    breath: src.breath,
+  };
+  // Play it on the destination slot. Stop any existing voice there first.
+  if (slots[dstIdx].voiceObj) slots[dstIdx].voiceObj.stop();
+  slots[dstIdx].voiceObj = hoot(impactPatch);
+  // Visual: a fling trace from src to dst, brighter the harder the fling
+  addFlingTrace(srcIdx, dstIdx, intensity);
+  // Select destination so the user sees the impacted owl
+  selectSlot(dstIdx);
+  showToast(`fling · ${(intensity * 100).toFixed(0)}% intensity`);
+}
+
+/* Fling traces are brighter and thicker than normal spell traces. */
+function addFlingTrace(fromIdx, toIdx, intensity) {
+  spellTraces.push({
+    from: fromIdx, to: toIdx, born: performance.now(),
+    fling: true, intensity: intensity,
+  });
+  if (spellTraces.length > 32) spellTraces.shift();
+}
+
+function buildHex() {
+  const field = document.getElementById('hexField');
+  // Preserve the .hex-geometry SVG layer; only remove existing cells
+  field.querySelectorAll('.hex-cell').forEach(n => n.remove());
+  slots.forEach((s, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'hex-cell' + (i === selectedIdx ? ' selected' : '');
+    cell.style.left = HEX_POSITIONS[i].left;
+    cell.style.top = HEX_POSITIONS[i].top;
+    const canvas = document.createElement('canvas');
+    cell.appendChild(canvas);
+    const pitchTag = document.createElement('div');
+    pitchTag.className = 'hex-pitch';
+    cell.appendChild(pitchTag);
+    attachHexGesture(cell, i);
+    field.appendChild(cell);
+    s.el = cell;
+    s.canvas = canvas;
+    s.pitchTag = pitchTag;
+  });
+  // Size canvases after layout settles
+  requestAnimationFrame(() => {
+    slots.forEach(s => {
+      fixCanvasDPR(s.canvas);
+      // Parliament cells are small — cap fractal at 1 level (parent + 2 kids).
+      // The big featured owl renders the full 3 levels.
+      s.canvas._maxFractalLevel = 1;
+    });
+    updateAllPitchTags();
+  });
+}
+
+function fixCanvasDPR(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  const c = canvas.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  canvas._cssW = rect.width;
+  canvas._cssH = rect.height;
+}
+
+function selectSlot(i) {
+  selectedIdx = i;
+  slots.forEach((s, j) => s.el.classList.toggle('selected', j === i));
+  MACRO_DEFS.forEach(def => {
+    const v = slots[i].patch[def.key];
+    knobObjs[def.key].setValue(v);
+    document.getElementById(`kv-${def.key}`).textContent = fmtVal(def.key, v);
+  });
+  document.getElementById('bigName').textContent = `OWL ${i + 1}`;
+  updateBigPitch();
+}
+
+function updateBigPitch() {
+  const s = slots[selectedIdx];
+  const f = pitchHz(s.patch.pitch);
+  document.getElementById('bigPitch').textContent =
+    `${f < 100 ? f.toFixed(1) : Math.round(f)} Hz`;
+}
+
+function updateSlotPitchTag(i) {
+  const s = slots[i];
+  const f = pitchHz(s.patch.pitch);
+  s.pitchTag.textContent = `${f < 100 ? f.toFixed(1) : Math.round(f)}`;
+}
+function updateAllPitchTags() {
+  slots.forEach((_, i) => updateSlotPitchTag(i));
+}
+
+/* ---------- SPELL TRACES ----------
+   Each tap leaves a fading line from the previously-tapped owl to the
+   newly-tapped one. The series of lines makes a *glyph* tracing the
+   shape you played. Lines decay over ~4 seconds, so quick play draws
+   shapes, slow play lets them dissolve.
+*/
+const SPELL_TRACE_LIFETIME = 4000; // ms
+const spellTraces = []; // [{ from, to, born }]
+let lastTrappedSlot = null; // last slot tapped, to anchor the next line
+
+function addSpellTrace(toSlotIdx) {
+  // Anchor: previous tap, or center if none.
+  const fromIdx = lastTrappedSlot !== null ? lastTrappedSlot : 0;
+  if (fromIdx === toSlotIdx) {
+    // Same owl tapped again — draw a brief pulse from center to it instead
+    spellTraces.push({ from: 0, to: toSlotIdx, born: performance.now() });
+  } else {
+    spellTraces.push({ from: fromIdx, to: toSlotIdx, born: performance.now() });
+  }
+  lastTrappedSlot = toSlotIdx;
+  // Cap stored traces so SVG doesn't bloat in long sessions.
+  if (spellTraces.length > 32) spellTraces.shift();
+}
+
+function renderSpellTraces(now) {
+  const layer = document.getElementById('spellTraces');
+  if (!layer) return;
+  layer.innerHTML = '';
+  for (let i = spellTraces.length - 1; i >= 0; i--) {
+    const tr = spellTraces[i];
+    const age = now - tr.born;
+    if (age > SPELL_TRACE_LIFETIME) {
+      spellTraces.splice(i, 1);
+      continue;
+    }
+    const lifeFrac = 1 - (age / SPELL_TRACE_LIFETIME);
+    const a = HEX_SVG_COORDS[tr.from];
+    const b = HEX_SVG_COORDS[tr.to];
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', a.x);
+    line.setAttribute('y1', a.y);
+    line.setAttribute('x2', b.x);
+    line.setAttribute('y2', b.y);
+    if (tr.fling) {
+      // Fling trace — thicker, brighter, with a pulsing color shift
+      const opacity = Math.pow(lifeFrac, 0.5) * (0.7 + tr.intensity * 0.3);
+      const width = 0.9 + tr.intensity * 1.4;
+      // Hue shifts from amber toward white-hot for high-intensity flings
+      const r = 244, g = 169 + Math.round(tr.intensity * 60), bch = 66 + Math.round(tr.intensity * 130);
+      line.setAttribute('stroke', `rgba(${r},${g},${bch},${opacity.toFixed(3)})`);
+      line.setAttribute('stroke-width', width.toFixed(2));
+    } else {
+      const opacity = Math.pow(lifeFrac, 0.7) * 0.65;
+      line.setAttribute('stroke', `rgba(244,169,66,${opacity.toFixed(3)})`);
+      line.setAttribute('stroke-width', '0.7');
+    }
+    line.setAttribute('stroke-linecap', 'round');
+    layer.appendChild(line);
+  }
+}
+
+/* ---------- VOICE MODE (playability) ----------
+   poly:    every tap overlaps freely (current behavior)
+   mono:    only one slot rings at a time; tapping a new owl cuts the previous one
+   legato:  like mono but the new note glides from the previous one's frequency,
+            shaped by the GLIDE knob. Restarts the envelope each tap (simpler
+            and more reliable than true legato envelope-keeping, and sounds
+            close to what's expected for FM voices).
+*/
+let voiceMode = 'poly'; // 'poly' | 'mono' | 'legato'
+let glideTime = 0.10;   // seconds, 0..0.6
+let lastVoiceObj = null; // the last voice we triggered, for mono/legato tracking
+
+function triggerSlot(i) {
+  const s = slots[i];
+
+  if (voiceMode === 'poly') {
+    // Same-slot retrigger always cuts that slot's previous voice
+    if (s.voiceObj) s.voiceObj.stop();
+    s.voiceObj = hoot(s.patch);
+  } else {
+    // Mono / legato: stop everything else first
+    const fromHz = (voiceMode === 'legato' && lastVoiceObj) ? lastVoiceObj.targetHz : null;
+    slots.forEach(other => {
+      if (other.voiceObj) {
+        other.voiceObj.softRelease();
+        other.voiceObj = null;
+      }
+    });
+    s.voiceObj = hoot(s.patch, {
+      fromHz: fromHz,
+      glideTime: voiceMode === 'legato' ? glideTime : 0,
+    });
+    lastVoiceObj = s.voiceObj;
+  }
+
+  addSpellTrace(i);
+}
+
+/* ---------- PITCH CAST (active compensation) ----------
+   Casts the selected owl across the major scale, with per-position
+   compensation: each slot's patch is nudged based on how far above
+   or below the root it sits, so the family sounds coherent rather
+   than the high notes feeling thin and the low notes feeling heavy.
+
+   Compensations (per octave above/below root):
+     length: +0.10 octave up — higher notes feel proportional with more decay
+     voice:  +0.08 octave up — higher notes benefit from fractal richness
+     breath: -0.05 octave up — high-pitched breathiness gets shrill fast
+     effort: +0.04 octave up — slight boost so highs don't feel timid
+   Compensations apply linearly with octave distance from root, then
+   clamp to [0, 1] to stay legal.
+*/
+function compensatePatch(src, octavesFromRoot) {
+  const o = octavesFromRoot;
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  return {
+    ...src,
+    length: clamp01(src.length + 0.10 * o),
+    voice:  clamp01(src.voice  + 0.08 * o),
+    breath: clamp01(src.breath - 0.05 * o),
+    effort: clamp01(src.effort + 0.04 * o),
+  };
+}
+
+function pitchCast() {
+  const src = slots[selectedIdx].patch;
+  const rootHz = pitchHz(src.pitch);
+  slots.forEach((s, i) => {
+    const intervalSemi = SCALE_INTERVALS[i];
+    let targetHz = rootHz * Math.pow(2, intervalSemi / 12);
+    // Octave-fold to stay in legal range; track total octaves moved for compensation.
+    let octavesFromRoot = intervalSemi / 12;
+    while (targetHz > 200) { targetHz /= 2; octavesFromRoot -= 1; }
+    while (targetHz < 20)  { targetHz *= 2; octavesFromRoot += 1; }
+    const compensated = compensatePatch(src, octavesFromRoot);
+    s.patch = { ...compensated, pitch: pitchKnobForHz(targetHz) };
+  });
+  updateAllPitchTags();
+  selectSlot(selectedIdx);
+}
+
+/* ---------- ACTIONS ---------- */
+document.getElementById('hootBtn').addEventListener('click', () => triggerSlot(selectedIdx));
+
+// Voice mode buttons
+document.querySelectorAll('.vm-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    voiceMode = btn.dataset.vm;
+    document.querySelectorAll('.vm-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.vm === voiceMode);
+    });
+    // If switching out of legato/mono, clear the last-voice tracker
+    if (voiceMode === 'poly') lastVoiceObj = null;
+  });
+});
+
+// Glide slider (only meaningful in legato mode but adjustable any time)
+document.getElementById('glideSlider').addEventListener('input', (e) => {
+  const ms = +e.target.value;
+  glideTime = ms / 1000;
+  document.getElementById('glideVal').textContent = ms + 'ms';
+});
+document.getElementById('glideVal').textContent = '100ms';
+document.getElementById('castBtn').addEventListener('click', () => pitchCast());
+document.getElementById('stopBtn').addEventListener('click', () => stopAll());
+
+/* ---------- ANIMATION LOOP ---------- */
+const chFills = document.querySelectorAll('.ch-fill');
+
+function frame(now) {
+  const t = now / 1000;
+  let liveBreath = 0;
+  activeVoices.forEach(v => {
+    liveBreath = Math.max(liveBreath, v.breathAt(audioCtx?.currentTime || 0) / Math.max(0.01, v.effort));
+  });
+  const couplings = [liveBreath, liveBreath * 0.85, liveBreath * 0.7, liveBreath * 0.6];
+  chFills.forEach((el, i) => { el.style.height = `${Math.round(couplings[i] * 100)}%`; });
+
+  const selSlot = slots[selectedIdx];
+  let bigB = 0;
+  if (selSlot.voiceObj && audioCtx) {
+    const dt = audioCtx.currentTime - selSlot.voiceObj.startTime;
+    if (dt >= 0 && dt <= selSlot.voiceObj.total) {
+      bigB = selSlot.voiceObj.breathAt(audioCtx.currentTime) / Math.max(0.01, selSlot.voiceObj.effort);
+    }
+  }
+  if (bigCanvas) drawOwl(bigCanvas, selSlot.patch, bigB, t);
+
+  slots.forEach((s) => {
+    if (!s.canvas || !s.canvas._cssW) return;
+    let b = 0;
+    if (s.voiceObj && audioCtx) {
+      const dt = audioCtx.currentTime - s.voiceObj.startTime;
+      if (dt >= 0 && dt <= s.voiceObj.total) {
+        b = s.voiceObj.breathAt(audioCtx.currentTime) / Math.max(0.01, s.voiceObj.effort);
+      }
+    }
+    drawOwl(s.canvas, s.patch, b, t);
+  });
+
+  // Spell traces — fading glyph on the geometry layer
+  renderSpellTraces(now);
+
+  requestAnimationFrame(frame);
+}
+
+/* ---------- TABS ---------- */
+function setupTabs() {
+  const btns = document.querySelectorAll('.tab-btn');
+  const panes = document.querySelectorAll('.tab-pane');
+  btns.forEach(b => b.addEventListener('click', () => {
+    const tab = b.dataset.tab;
+    btns.forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+    panes.forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+    // Re-fix DPR on canvases that may have been display:none
+    if (tab === 'play') {
+      requestAnimationFrame(() => {
+        if (bigCanvas) fixCanvasDPR(bigCanvas);
+        slots.forEach(s => {
+          if (s.canvas) {
+            fixCanvasDPR(s.canvas);
+            s.canvas._maxFractalLevel = 1;
+          }
+        });
+        Object.values(knobObjs).forEach(k => { k.fixDPR(); k.draw(); });
+      });
+    }
+  }));
+}
+
+/* ---------- MAPPING EDITOR ----------
+   Snapshot of defaults so RESET works.
+*/
+const DEFAULT_VISUAL_AXES = JSON.parse(JSON.stringify(VISUAL_AXES));
+
+const MAP_PARAM_OPTIONS = [
+  'pitch', 'ratio', 'effort', 'length', 'rough', 'breath', 'voice'
+];
+
+function buildMappingEditor() {
+  const list = document.getElementById('mappingList');
+  list.innerHTML = '';
+  Object.keys(VISUAL_AXES).forEach(axisKey => {
+    const a = VISUAL_AXES[axisKey];
+    const row = document.createElement('div');
+    row.className = 'map-row';
+
+    const left = document.createElement('div');
+    left.innerHTML = `
+      <div class="map-axis">${a.label}</div>
+      <div class="map-axis-sub">${axisKey}</div>
+    `;
+    row.appendChild(left);
+
+    const mid = document.createElement('div');
+    mid.className = 'map-source';
+    const sel = document.createElement('select');
+    sel.className = 'map-select';
+    MAP_PARAM_OPTIONS.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p.toUpperCase();
+      if (p === a.param) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      VISUAL_AXES[axisKey].param = sel.value;
+    });
+    mid.appendChild(sel);
+    row.appendChild(mid);
+
+    const invBtn = document.createElement('button');
+    invBtn.className = 'map-invert' + (a.invert ? ' on' : '');
+    invBtn.textContent = a.invert ? 'INV' : 'NORM';
+    invBtn.addEventListener('click', () => {
+      VISUAL_AXES[axisKey].invert = !VISUAL_AXES[axisKey].invert;
+      invBtn.classList.toggle('on');
+      invBtn.textContent = VISUAL_AXES[axisKey].invert ? 'INV' : 'NORM';
+    });
+    row.appendChild(invBtn);
+
+    list.appendChild(row);
+  });
+}
+
+function resetMapping() {
+  Object.keys(DEFAULT_VISUAL_AXES).forEach(k => {
+    VISUAL_AXES[k].param = DEFAULT_VISUAL_AXES[k].param;
+    VISUAL_AXES[k].invert = DEFAULT_VISUAL_AXES[k].invert;
+    VISUAL_AXES[k].min = DEFAULT_VISUAL_AXES[k].min;
+    VISUAL_AXES[k].max = DEFAULT_VISUAL_AXES[k].max;
+  });
+  buildMappingEditor();
+}
+
+/* ---------- THEME PICKER ---------- */
+function buildThemePicker() {
+  const wrap = document.getElementById('themePicker');
+  wrap.innerHTML = '';
+  Object.keys(THEMES).forEach(themeKey => {
+    const btn = document.createElement('button');
+    btn.className = 'theme-btn' + (themeKey === CURRENT_THEME_KEY ? ' active' : '');
+    btn.textContent = THEMES[themeKey].label.toUpperCase();
+    btn.addEventListener('click', () => {
+      setTheme(themeKey);
+      // Update active state across buttons
+      wrap.querySelectorAll('.theme-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent === THEMES[themeKey].label.toUpperCase());
+      });
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+/* ---------- OWLERY & ROOST: preset storage ----------
+   OWLERY holds single-owl presets (a patch + name).
+   ROOST  holds parliament arrangements (7 patches + their pitch offsets +
+          which slot was selected + name).
+   Storage: localStorage, namespaced.
+*/
+const STORAGE_KEYS = {
+  owls:  'hoot.v2.owlery',
+  parls: 'hoot.v2.roost',
+};
+
+function loadList(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+function saveList(key, list) {
+  try { localStorage.setItem(key, JSON.stringify(list)); }
+  catch (e) { /* quota? incognito? ignore */ }
+}
+
+let owlery = loadList(STORAGE_KEYS.owls);
+let roost  = loadList(STORAGE_KEYS.parls);
+
+/* Auto-name an owl from its patch — descriptive enough to identify */
+function autoNameOwl(patch) {
+  const hz = pitchHz(patch.pitch);
+  const hzStr = hz < 100 ? hz.toFixed(0) : Math.round(hz);
+  const r = fmRatio(patch.ratio);
+  let timbre;
+  if (r < 0.95) timbre = 'sub';
+  else if (r < 4.10) {
+    const near = Math.abs(r - Math.round(r));
+    timbre = near < 0.15 ? `tone ${Math.round(r)}` : 'mixed';
+  } else timbre = 'inhar';
+  const voiceLabel = patch.voice > 0.6 ? ' fractal' :
+                     patch.voice > 0.3 ? ' choir' : '';
+  const breathLabel = patch.breath > 0.5 ? ' breathy' : '';
+  return `${hzStr}Hz · ${timbre}${voiceLabel}${breathLabel}`;
+}
+
+function autoNameParliament(slotsArr) {
+  const rootHz = pitchHz(slotsArr[0].patch.pitch);
+  const rootStr = rootHz < 100 ? rootHz.toFixed(0) : Math.round(rootHz);
+  // Check if all patches are identical except pitch (i.e. cast)
+  const ref = slotsArr[0].patch;
+  const cast = slotsArr.every(s =>
+    Math.abs(s.patch.ratio - ref.ratio) < 0.001 &&
+    Math.abs(s.patch.effort - ref.effort) < 0.001 &&
+    Math.abs(s.patch.length - ref.length) < 0.001 &&
+    Math.abs(s.patch.rough - ref.rough) < 0.001 &&
+    Math.abs(s.patch.voice - ref.voice) < 0.001 &&
+    Math.abs(s.patch.breath - ref.breath) < 0.001
+  );
+  return cast
+    ? `Cast · ${rootStr}Hz root`
+    : `Mixed · ${rootStr}Hz center`;
+}
+
+function saveOwl() {
+  const p = { ...slots[selectedIdx].patch };
+  const suggested = autoNameOwl(p);
+  const name = prompt('Name this owl:', suggested);
+  if (name === null) return; // user cancelled
+  const trimmed = name.trim() || suggested;
+  const item = {
+    id: 'o_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    name: trimmed,
+    patch: p,
+    created: Date.now(),
+  };
+  owlery.unshift(item);
+  saveList(STORAGE_KEYS.owls, owlery);
+  renderOwlery();
+  refreshSlotDropdowns();
+  showToast(`Sent ${trimmed} to the Owlery`);
+}
+
+function saveParliament() {
+  const suggested = autoNameParliament(slots);
+  const name = prompt('Name this parliament:', suggested);
+  if (name === null) return;
+  const trimmed = name.trim() || suggested;
+  const item = {
+    id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    name: trimmed,
+    slots: slots.map(s => ({ patch: { ...s.patch } })),
+    created: Date.now(),
+  };
+  roost.unshift(item);
+  saveList(STORAGE_KEYS.parls, roost);
+  renderOwlery();
+  showToast(`Roosted ${trimmed}`);
+}
+
+function loadOwlIntoSelected(item) {
+  slots[selectedIdx].patch = { ...item.patch };
+  selectSlot(selectedIdx); // refreshes knobs
+  updateSlotPitchTag(selectedIdx);
+  updateBigPitch();
+  showToast(`Loaded ${item.name}`);
+}
+
+function castOwlAcrossAll(item) {
+  // Pretend the loaded owl was just set on the selected slot, then run pitch cast
+  slots[selectedIdx].patch = { ...item.patch };
+  selectSlot(selectedIdx);
+  pitchCast();
+  showToast(`Cast ${item.name} across the Parliament`);
+}
+
+function loadParliament(item) {
+  item.slots.forEach((src, i) => {
+    if (slots[i]) slots[i].patch = { ...src.patch };
+  });
+  selectSlot(0);
+  updateAllPitchTags();
+  showToast(`Loaded ${item.name}`);
+}
+
+function deleteOwl(id) {
+  owlery = owlery.filter(o => o.id !== id);
+  saveList(STORAGE_KEYS.owls, owlery);
+  renderOwlery();
+}
+function deleteParliament(id) {
+  roost = roost.filter(p => p.id !== id);
+  saveList(STORAGE_KEYS.parls, roost);
+  renderOwlery();
+}
+
+/* ---------- Render Owlery & Roost ---------- */
+/* ---------- SLOT DROPDOWNS ----------
+   A row of 7 <select> menus, one per slot, listing every owl in the Owlery.
+   Picking one loads that owl's patch into that slot. Re-rendered whenever
+   the Owlery changes.
+*/
+function buildSlotDropdowns() {
+  const wrap = document.getElementById('slotDropdowns');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'slot-drop';
+    cell.innerHTML = `<div class="slot-drop-num">${i + 1}</div>`;
+    const sel = document.createElement('select');
+    sel.dataset.slot = i;
+    // First option is the current state — "(current)" placeholder
+    const cur = document.createElement('option');
+    cur.value = '';
+    cur.textContent = '— pick —';
+    sel.appendChild(cur);
+    owlery.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      const id = sel.value;
+      if (!id) return;
+      const item = owlery.find(o => o.id === id);
+      if (!item) return;
+      slots[i].patch = { ...item.patch };
+      updateSlotPitchTag(i);
+      if (i === selectedIdx) {
+        selectSlot(selectedIdx);
+      }
+      // Reset placeholder so user can pick same owl again later
+      sel.value = '';
+    });
+    cell.appendChild(sel);
+    wrap.appendChild(cell);
+  }
+}
+
+function refreshSlotDropdowns() {
+  // Rebuild fully — simpler than diffing
+  buildSlotDropdowns();
+}
+
+function renderOwlery() {
+  refreshSlotDropdowns();
+  document.getElementById('owleryCount').textContent = owlery.length;
+  document.getElementById('roostCount').textContent = roost.length;
+
+  // Owls
+  const owlList = document.getElementById('owleryList');
+  owlList.innerHTML = '';
+  if (owlery.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'owlery-empty';
+    empty.textContent = 'No owls in the Owlery yet';
+    owlList.appendChild(empty);
+  } else {
+    owlery.forEach(item => owlList.appendChild(buildOwlItem(item)));
+  }
+
+  // Parliaments
+  const parlList = document.getElementById('roostList');
+  parlList.innerHTML = '';
+  if (roost.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'owlery-empty';
+    empty.textContent = 'No parliaments roosted yet';
+    parlList.appendChild(empty);
+  } else {
+    roost.forEach(item => parlList.appendChild(buildParlItem(item)));
+  }
+}
+
+function buildOwlItem(item) {
+  const row = document.createElement('div');
+  row.className = 'ow-item';
+
+  const thumb = document.createElement('canvas');
+  thumb.className = 'ow-thumb';
+  thumb.width = 72; thumb.height = 72;
+  thumb._cssW = 36; thumb._cssH = 36;
+  thumb.getContext('2d').setTransform(2, 0, 0, 2, 0, 0);
+  thumb._maxFractalLevel = 0;
+  drawOwl(thumb, item.patch, 0, 0);
+  row.appendChild(thumb);
+
+  const info = document.createElement('div');
+  info.innerHTML = `
+    <div class="ow-name">${escapeHtml(item.name)}</div>
+    <div class="ow-meta">${humanDate(item.created)}</div>
+  `;
+  row.appendChild(info);
+
+  const castBtn = document.createElement('button');
+  castBtn.className = 'ow-cast';
+  castBtn.textContent = 'CAST';
+  castBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    castOwlAcrossAll(item);
+  });
+  row.appendChild(castBtn);
+
+  attachLoadAndDelete(row, () => loadOwlIntoSelected(item), () => deleteOwl(item.id));
+  return row;
+}
+
+function buildParlItem(item) {
+  const row = document.createElement('div');
+  row.className = 'ow-item';
+
+  // Multi-thumb: 4 mini owls from the 7 (slots 0/2/4/6 for variety)
+  const thumbWrap = document.createElement('div');
+  thumbWrap.className = 'ow-thumb ow-thumb-multi';
+  [0, 2, 4, 6].forEach(i => {
+    const tc = document.createElement('canvas');
+    tc.width = 36; tc.height = 36;
+    tc._cssW = 18; tc._cssH = 18;
+    tc.getContext('2d').setTransform(2, 0, 0, 2, 0, 0);
+    tc._maxFractalLevel = 0;
+    const p = item.slots[i] ? item.slots[i].patch : item.slots[0].patch;
+    drawOwl(tc, p, 0, 0);
+    thumbWrap.appendChild(tc);
+  });
+  row.appendChild(thumbWrap);
+
+  const info = document.createElement('div');
+  info.innerHTML = `
+    <div class="ow-name">${escapeHtml(item.name)}</div>
+    <div class="ow-meta">${humanDate(item.created)} · 7 owls</div>
+  `;
+  row.appendChild(info);
+
+  const spacer = document.createElement('div');
+  row.appendChild(spacer);
+
+  attachLoadAndDelete(row, () => loadParliament(item), () => deleteParliament(item.id));
+  return row;
+}
+
+/* Tap to load · Long-press (700ms) to delete */
+function attachLoadAndDelete(el, onLoad, onDelete) {
+  let pressTimer = null;
+  let didLongPress = false;
+
+  const start = () => {
+    didLongPress = false;
+    el.classList.add('deleting');
+    pressTimer = setTimeout(() => {
+      didLongPress = true;
+      el.classList.remove('deleting');
+      onDelete();
+    }, 700);
+  };
+  const cancel = () => {
+    el.classList.remove('deleting');
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  };
+  const fireLoad = (e) => {
+    if (didLongPress) return;
+    onLoad();
+    // Switch to PLAY tab so the user sees the change immediately
+    document.querySelector('.tab-btn[data-tab="play"]').click();
+  };
+
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', fireLoad);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('touchstart', (e) => { start(); }, { passive: true });
+  el.addEventListener('touchend', (e) => { cancel(); if (!didLongPress) fireLoad(); });
+  el.addEventListener('touchcancel', cancel);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function humanDate(ts) {
+  const d = new Date(ts);
+  const now = Date.now();
+  const ageMin = (now - ts) / 60000;
+  if (ageMin < 1) return 'just now';
+  if (ageMin < 60) return `${Math.floor(ageMin)}m ago`;
+  if (ageMin < 60 * 24) return `${Math.floor(ageMin / 60)}h ago`;
+  return d.toLocaleDateString();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 1700);
+}
+
+/* ---------- FACTORY PRESETS ----------
+   Ship a small starter set so the Owlery isn't empty on first load.
+   In-the-spirit-of names without using trademarks.
+*/
+const FACTORY_OWLS = [
+  // Originals
+  { name: 'Snowy Post',    patch: { pitch: 0.18, ratio: 0.30, effort: 0.75, length: 0.65, rough: 0.20, voice: 0.05, breath: 0.10 } },
+  { name: 'Tiny Excited',  patch: { pitch: 0.72, ratio: 0.50, effort: 0.85, length: 0.25, rough: 0.45, voice: 0.40, breath: 0.20 } },
+  { name: 'Old Stately',   patch: { pitch: 0.22, ratio: 0.15, effort: 0.60, length: 0.85, rough: 0.10, voice: 0.00, breath: 0.30 } },
+  { name: 'Glass Bell',    patch: { pitch: 0.40, ratio: 0.85, effort: 0.65, length: 0.45, rough: 0.20, voice: 0.55, breath: 0.05 } },
+  // Claude's recipes — each tries to demonstrate a specific parameter behavior
+  { name: 'Deep Drone',    patch: { pitch: 0.05, ratio: 0.18, effort: 0.70, length: 0.95, rough: 0.05, voice: 0.00, breath: 0.05 } }, // lowest cleanest longest
+  { name: 'The Watcher',   patch: { pitch: 0.10, ratio: 1.00, effort: 0.55, length: 0.70, rough: 0.15, voice: 0.00, breath: 0.20 } }, // platonic owl
+  { name: 'Mothlight',     patch: { pitch: 0.55, ratio: 3.00, effort: 0.50, length: 0.20, rough: 0.40, voice: 0.00, breath: 0.45 } }, // breathy fluttering tiny thing
+  { name: 'Crystal Bell',  patch: { pitch: 0.45, ratio: 2.00, effort: 0.75, length: 0.55, rough: 0.10, voice: 0.65, breath: 0.00 } }, // fractal harmonic stack
+  { name: 'Bog Witch',     patch: { pitch: 0.20, ratio: 5.50, effort: 0.80, length: 0.65, rough: 0.65, voice: 0.00, breath: 0.40 } }, // inharmonic + roughed up
+  { name: 'Hymnal',        patch: { pitch: 0.30, ratio: 1.00, effort: 0.65, length: 0.85, rough: 0.10, voice: 0.90, breath: 0.10 } }, // max-voice choir
+  // The "normal" workhorses — songs need supportive sounds, not just experimental ones.
+  { name: 'Sub Anchor',    patch: { pitch: 0.12, ratio: 1.00, effort: 0.80, length: 0.85, rough: 0.05, voice: 0.00, breath: 0.00 } }, // clean low sub, no FM weirdness — for bass lines
+  { name: 'Round Bass',    patch: { pitch: 0.20, ratio: 1.00, effort: 0.75, length: 0.55, rough: 0.10, voice: 0.20, breath: 0.05 } }, // sub with a touch of body — for tonal bass
+  { name: 'Held Pad',      patch: { pitch: 0.30, ratio: 2.00, effort: 0.55, length: 0.95, rough: 0.08, voice: 0.50, breath: 0.10 } }, // long sustaining pad with harmonic body
+  { name: 'Resting Hoot',  patch: { pitch: 0.25, ratio: 1.00, effort: 0.50, length: 0.50, rough: 0.12, voice: 0.10, breath: 0.15 } }, // calm middle-range, daily driver
+  { name: 'Warm Body',     patch: { pitch: 0.28, ratio: 1.00, effort: 0.65, length: 0.65, rough: 0.10, voice: 0.30, breath: 0.10 } }, // mid-range with subtle harmonics — sits in a mix
+  { name: 'Wooden Stem',   patch: { pitch: 0.35, ratio: 1.00, effort: 0.70, length: 0.40, rough: 0.20, voice: 0.15, breath: 0.20 } }, // shorter tonal — plucky-ish without being plucky
+  { name: 'Quiet Carrier', patch: { pitch: 0.18, ratio: 1.00, effort: 0.45, length: 0.75, rough: 0.05, voice: 0.05, breath: 0.05 } }, // gentle background voice — for layering under leads
+];
+
+/* Parliaments: two kinds — cast (one seed broadcast as scale) and mix (hand-arranged slots). */
+const FACTORY_PARLIAMENTS = [
+  // Originals — both casts
+  {
+    name: 'Morning Post · Cast',
+    seedPatch: { pitch: 0.32, ratio: 0.28, effort: 0.70, length: 0.50, rough: 0.20, voice: 0.10, breath: 0.10 },
+  },
+  {
+    name: 'Midnight Delivery · Cast',
+    seedPatch: { pitch: 0.15, ratio: 0.18, effort: 0.65, length: 0.85, rough: 0.15, voice: 0.05, breath: 0.25 },
+  },
+  // Claude's recipes
+  {
+    // Major scale of classic owls — the "hello world"
+    name: 'The Greeting · Cast',
+    seedPatch: { pitch: 0.10, ratio: 1.00, effort: 0.55, length: 0.70, rough: 0.15, voice: 0.00, breath: 0.20 },
+  },
+  {
+    // Major scale of full-voiced choir-owls — feels like playing a small organ
+    name: 'Cathedral · Cast',
+    seedPatch: { pitch: 0.30, ratio: 1.00, effort: 0.65, length: 0.85, rough: 0.10, voice: 0.90, breath: 0.10 },
+  },
+  {
+    // Major scale played by inharmonic creatures — legitimately unsettling
+    name: 'Hauntings · Cast',
+    seedPatch: { pitch: 0.20, ratio: 5.50, effort: 0.80, length: 0.65, rough: 0.65, voice: 0.00, breath: 0.40 },
+  },
+  {
+    // Hand-mixed ecology — different creatures at different positions
+    // Slot order: 0=center(root), 1=top, 2=top-right, 3=bottom-right, 4=bottom, 5=bottom-left, 6=top-left
+    name: 'Dawn Chorus · Mix',
+    slotPatches: [
+      { pitch: 0.10, ratio: 1.00, effort: 0.55, length: 0.70, rough: 0.15, voice: 0.00, breath: 0.20 }, // 0 Watcher (root)
+      { pitch: 0.05, ratio: 0.18, effort: 0.70, length: 0.95, rough: 0.05, voice: 0.00, breath: 0.05 }, // 1 Deep Drone top
+      { pitch: 0.30, ratio: 1.00, effort: 0.65, length: 0.85, rough: 0.10, voice: 0.90, breath: 0.10 }, // 2 Hymnal top-right
+      { pitch: 0.45, ratio: 2.00, effort: 0.75, length: 0.55, rough: 0.10, voice: 0.65, breath: 0.00 }, // 3 Crystal Bell bottom-right
+      { pitch: 0.55, ratio: 3.00, effort: 0.50, length: 0.20, rough: 0.40, voice: 0.00, breath: 0.45 }, // 4 Mothlight bottom
+      { pitch: 0.10, ratio: 1.00, effort: 0.55, length: 0.70, rough: 0.15, voice: 0.00, breath: 0.20 }, // 5 Watcher bottom-left
+      { pitch: 0.22, ratio: 0.15, effort: 0.60, length: 0.85, rough: 0.10, voice: 0.00, breath: 0.30 }, // 6 Old Stately top-left
+    ],
+  },
+];
+
+function seedFactoryIfEmpty() {
+  // Add any factory owls that aren't present by name (migration-friendly).
+  const existingOwlNames = new Set(owlery.map(o => o.name));
+  FACTORY_OWLS.forEach((f, i) => {
+    if (!existingOwlNames.has(f.name)) {
+      owlery.push({
+        id: 'fo_' + i + '_' + Date.now(),
+        name: f.name,
+        patch: { ...f.patch },
+        created: Date.now() - (FACTORY_OWLS.length - i) * 1000,
+      });
+    }
+  });
+  saveList(STORAGE_KEYS.owls, owlery);
+
+  // Add any factory parliaments that aren't present by name.
+  const existingParlNames = new Set(roost.map(p => p.name));
+  FACTORY_PARLIAMENTS.forEach((f, i) => {
+    if (existingParlNames.has(f.name)) return;
+    let slotPatches;
+    if (f.slotPatches) {
+      slotPatches = f.slotPatches.map(p => ({ ...p }));
+    } else {
+      const rootHz = pitchHz(f.seedPatch.pitch);
+      slotPatches = SCALE_INTERVALS.map(semi => {
+        let targetHz = rootHz * Math.pow(2, semi / 12);
+        while (targetHz > 200) targetHz /= 2;
+        while (targetHz < 20) targetHz *= 2;
+        return { ...f.seedPatch, pitch: pitchKnobForHz(targetHz) };
+      });
+    }
+    roost.push({
+      id: 'fp_' + i + '_' + Date.now(),
+      name: f.name,
+      slots: slotPatches.map(p => ({ patch: p })),
+      created: Date.now() - (FACTORY_PARLIAMENTS.length - i) * 1000,
+    });
+  });
+  saveList(STORAGE_KEYS.parls, roost);
+}
+
+/* ---------- BOOT ---------- */
+window.addEventListener('load', () => {
+  bigCanvas = document.getElementById('bigOwl');
+  fixCanvasDPR(bigCanvas);
+  buildKnobs();
+  buildHex();
+  selectSlot(0);
+  setupTabs();
+  buildMappingEditor();
+  buildThemePicker();
+  document.getElementById('mapResetBtn').addEventListener('click', resetMapping);
+
+  // Owlery & Roost
+  seedFactoryIfEmpty();
+  renderOwlery();
+  document.getElementById('saveOwlBtn').addEventListener('click', saveOwl);
+  document.getElementById('saveParlBtn').addEventListener('click', saveParliament);
+
+  // Intro modal — shows every load unless user checked "don't show again".
+  // The flag stores opt-out, not opt-in (inverted from previous logic).
+  const INTRO_SKIP_KEY = 'hoot.v2.introSkip';
+  const introModal = document.getElementById('introModal');
+  const introSkipBox = document.getElementById('introSkipNext');
+  if (!localStorage.getItem(INTRO_SKIP_KEY)) {
+    introModal.classList.add('show');
+  }
+  // Reflect current opt-out state in the checkbox each time the modal opens.
+  function syncIntroCheckbox() {
+    introSkipBox.checked = !!localStorage.getItem(INTRO_SKIP_KEY);
+  }
+  syncIntroCheckbox();
+  document.getElementById('introGoBtn').addEventListener('click', () => {
+    introModal.classList.remove('show');
+    if (introSkipBox.checked) {
+      localStorage.setItem(INTRO_SKIP_KEY, '1');
+    } else {
+      localStorage.removeItem(INTRO_SKIP_KEY);
+    }
+  });
+  document.getElementById('reopenIntroBtn').addEventListener('click', () => {
+    introModal.classList.add('show');
+    syncIntroCheckbox();
+  });
+
+  requestAnimationFrame(frame);
+});
+window.addEventListener('resize', () => {
+  if (bigCanvas) fixCanvasDPR(bigCanvas);
+  slots.forEach(s => {
+    if (s.canvas) {
+      fixCanvasDPR(s.canvas);
+      s.canvas._maxFractalLevel = 1;
+    }
+  });
+  Object.values(knobObjs).forEach(k => { k.fixDPR(); k.draw(); });
+});
+['touchstart', 'mousedown', 'keydown'].forEach(ev => {
+  window.addEventListener(ev, () => ensureAudio(), { once: true });
+});
+</script>
+</body>
+</html>
